@@ -1,0 +1,169 @@
+@use '../../variables' as *;
+
+.sync-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+  padding: 2rem;
+  color: $color-prime-text;
+}
+
+.sync-header {
+  text-align: center;
+  margin-bottom: $spacing-6xl;
+
+  .sync-title {
+    font-size: $font-size-xl;
+    font-weight: 700;
+    margin-bottom: $spacing-s;
+  }
+
+  .sync-subtitle {
+    font-size: $font-size-m;
+    color: $color-secondary-text;
+  }
+}
+
+.sync-options {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  gap: $spacing-l;
+  width: 100%;
+  max-width: 1000px;
+}
+
+.sync-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: $spacing-xl;
+  background-color: $color-base;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+  flex: 1;
+  min-width: 250px;
+  
+  &:hover {
+    border-color: $color-prime;
+    background-color: rgba(255, 255, 255, 0.05);
+    transform: translateY(-4px);
+  }
+
+  &.scanning {
+    opacity: 0.5;
+    pointer-events: none;
+    border-color: $color-prime;
+    animation: pulse 1.5s infinite;
+  }
+
+  .sync-card-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: $color-button-back-gray;
+    color: $color-prime;
+    padding: $spacing-l;
+    border-radius: 50%;
+    margin-bottom: $spacing-l;
+  }
+
+  .sync-card-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+
+    .sync-card-title {
+      font-size: $font-size-m;
+      font-weight: 600;
+      margin-bottom: $spacing-xs;
+      color: $color-prime-text;
+    }
+
+    .sync-card-desc {
+      font-size: $font-size-s;
+      color: $color-secondary-text;
+      line-height: 1.4;
+    }
+  }
+  
+  .sync-card-arrow {
+    color: $color-secondary-text;
+    transition: transform 0.3s, color 0.3s;
+    margin-top: $spacing-m;
+  }
+
+  &:hover .sync-card-arrow {
+    color: $color-prime;
+    transform: translateY(4px);
+  }
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.98); }
+  100% { transform: scale(1); }
+}
+
+.sync-progress-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 600px;
+  background-color: $color-base;
+  padding: $spacing-2xl;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+
+  .progress-icon {
+    color: $color-prime;
+    margin-bottom: $spacing-l;
+    
+    .pulse-icon {
+      animation: pulse-opacity 2s infinite ease-in-out;
+    }
+  }
+
+  .progress-title {
+    font-size: $font-size-l;
+    font-weight: 600;
+    margin-bottom: $spacing-xl;
+    color: $color-prime-text;
+  }
+
+  .progress-bar-bg {
+    width: 100%;
+    height: 8px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: $spacing-m;
+
+    .progress-bar-fill {
+      height: 100%;
+      background-color: $color-prime;
+      border-radius: 4px;
+      transition: width 0.2s ease-out;
+    }
+  }
+
+  .progress-text {
+    font-size: $font-size-s;
+    color: $color-secondary-text;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@keyframes pulse-opacity {
+  0% { opacity: 0.6; transform: scale(0.95); }
+  50% { opacity: 1; transform: scale(1.05); }
+  100% { opacity: 0.6; transform: scale(0.95); }
+}

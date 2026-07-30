@@ -1,0 +1,480 @@
+@use '../../variables' as *;
+
+.dashboard-player-bar {
+  position: relative;
+  background-color: $color-base; // Deep dark color matching the screenshot
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 $spacing-xl;
+  height: 100%; // Takes up the full grid area height (100px)
+  user-select: none;
+
+  .player-left,
+  .player-right {
+    width: 24%;
+    display: flex;
+  }
+
+  .player-right {
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-end;
+    gap: 8px; // Gap between gain control and icons
+  }
+
+  .player-center {
+    width: 52%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+  }
+
+  // --- LEFT SECTION ---
+  .track-info {
+    display: flex;
+    align-items: center;
+    gap: $spacing-m;
+
+    .track-art {
+      width: 72px;
+      height: 72px;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+      border-radius: 8px;
+      flex-shrink: 0;
+    }
+
+    .track-details {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 2px; // slightly separate title and artist wrapper
+
+      .track-name {
+        color: $color-prime-text;
+        font-weight: 600;
+        font-size: 16px;
+        line-height: 20px;
+      }
+
+      .track-artist {
+        color: $color-secondary-text;
+        font-size: 14px;
+        font-weight: 500;
+        line-height: 18px;
+      }
+
+      .audio-quality-detail {
+        color: $color-secondary-text;
+        font-size: 10px;
+        line-height: 10px;
+        font-weight: 800;
+        padding: 2px 4px;
+        border: 1px solid rgba(255, 255, 255, 0.1); // subtle border
+        border-radius: 4px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: max-content;
+        margin-top: 2px; // add a little spacing below the artist name
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+    }
+
+    .like-btn {
+      background: none;
+      border: none;
+      color: rgba(255, 255, 255, 0.5);
+      cursor: pointer;
+      margin-left: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.2s;
+
+      &:hover {
+        color: $color-prime-text;
+      }
+    }
+  }
+
+  // --- CENTER SECTION ---
+  .player-controls {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+
+    .control-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.1s, opacity 0.2s;
+      opacity: 0.7;
+
+      img {
+        width: 16px;
+        height: auto;
+      }
+
+      &:hover {
+        opacity: 1;
+      }
+
+      &.play-btn {
+        opacity: 1;
+        transition: transform 0.2s;
+
+        img {
+          width: 36px;
+          height: 36px;
+        }
+
+        &:hover {
+          transform: scale(1.05);
+        }
+      }
+    }
+  }
+
+  .progress-bar-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    max-width: 500px;
+
+    .time {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.5);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .progress-track {
+      flex: 1;
+      height: 4px;
+      background-color: rgba(255, 255, 255, 0.15);
+      border-radius: 2px;
+      cursor: pointer;
+      position: relative;
+      display: flex;
+      align-items: center;
+
+      &:hover .progress-fill {
+        background-color: $color-prime;
+      }
+
+      .progress-fill {
+        height: 100%;
+        background-color: $color-prime-text;
+        border-radius: 2px;
+        transition: background-color 0.2s;
+        position: relative;
+
+        .progress-thumb {
+          position: absolute;
+          right: -6px;
+          top: 50%;
+          transform: translateY(-50%) scale(0);
+          width: 12px;
+          height: 12px;
+          background-color: white;
+          border-radius: 50%;
+          transition: transform 0.2s;
+          box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+        }
+      }
+
+      &:hover .progress-fill .progress-thumb,
+      &:active .progress-fill .progress-thumb,
+      &.dragging .progress-fill .progress-thumb {
+        transform: translateY(-50%) scale(1);
+      }
+    }
+  }
+
+  // --- RIGHT SECTION ---
+  .gain-control {
+    display: flex;
+    align-items: center;
+    border-radius: 12px;
+    padding: 2px 6px;
+    gap: 8px;
+    position: absolute;
+    right: 2%;
+    top: -32px;
+
+    .gain-btn {
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      color: rgba(255, 255, 255, 0.7);
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      line-height: 1;
+      cursor: pointer;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+      }
+    }
+
+    .gain-value {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.7);
+      font-weight: 500;
+      width: 52px;
+      text-align: center;
+    }
+  }
+
+  .right-controls {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+
+    .ext-control-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      opacity: 0.7;
+      transition: opacity 0.2s;
+      display: flex;
+      align-items: center;
+
+      img {
+        width: 16px;
+        height: auto;
+      }
+
+      &:hover {
+        opacity: 1;
+      }
+
+      &.queue-btn img {
+        // Red color for the active queue icon to match design
+        // If the SVG isn't red already, this filter will color it:
+        filter: invert(27%) sepia(91%) saturate(7351%) hue-rotate(355deg) brightness(96%) contrast(116%);
+      }
+    }
+
+    .volume-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      position: relative;
+
+      .volume-bar-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .volume-icon {
+        width: 16px;
+        opacity: 0.7;
+      }
+
+      .volume-track {
+        width: 120px;
+        flex: 1;
+        height: 6px;
+        background-color: #2b2b2b;
+        border-radius: 3px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+
+        &:hover .volume-fill {
+          background-color: $color-prime;
+        }
+
+        .volume-fill {
+          height: 100%;
+          background-color: $color-prime-text;
+          border-radius: 3px;
+          position: relative;
+          transition: background-color 0.2s;
+
+          .volume-thumb {
+            position: absolute;
+            right: -6px;
+            top: 50%;
+            transform: translateY(-50%) scale(0);
+            width: 12px;
+            height: 12px;
+            background-color: white;
+            border-radius: 50%;
+            transition: transform 0.2s;
+            box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+          }
+        }
+      }
+
+      &:hover .volume-fill .volume-thumb,
+      &:active .volume-fill .volume-thumb {
+        transform: translateY(-50%) scale(1);
+      }
+    }
+  }
+
+  .volume-warning-bar {
+    position: absolute;
+    bottom: 100%; // Just above the player bar
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(20, 20, 22, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 60, 60, 0.3);
+    border-radius: 8px 8px 0 0;
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    z-index: 100;
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.2);
+    border-bottom: none;
+
+    .warning-text {
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .warning-actions {
+      display: flex;
+      gap: 12px;
+
+      .warning-btn {
+        padding: 6px 16px;
+        border-radius: 6px;
+        border: none;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+
+        &.cancel {
+          background: rgba(255, 255, 255, 0.1);
+          color: white;
+
+          &:hover {
+            background: rgba(255, 255, 255, 0.2);
+          }
+        }
+
+        &.ok {
+          background: #e53935;
+          color: white;
+
+          &:hover {
+            background: #f44336;
+          }
+        }
+      }
+    }
+  }
+
+  .device-list-popup {
+    position: absolute;
+    bottom: 100px;
+    right: 2%;
+    width: 280px;
+    background: rgba(20, 20, 22, 0.95);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.4);
+    z-index: 200;
+    overflow: hidden;
+
+    .device-list-header {
+      padding: 12px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      color: $color-secondary-text;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      text-transform: capitalize;
+      letter-spacing: 0.5px;
+    }
+
+    .device-list-content {
+      max-height: 240px;
+      overflow-y: auto;
+      padding: 8px;
+
+      &::-webkit-scrollbar {
+        width: 4px;
+      }
+
+      &::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      &::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 4px;
+      }
+
+      .device-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background 0.2s;
+
+        &:hover {
+          background: rgba(255, 255, 255, 0.05);
+        }
+
+        .device-icon {
+          width: 16px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+
+          .active-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: #e53935;
+            box-shadow: 0 0 6px rgba(229, 57, 53, 0.6);
+          }
+        }
+
+        .device-name {
+          font-size: 13px;
+          color: $color-secondary-text;
+          font-weight: 500;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        &.default {
+          .device-name {
+            color: $color-prime-text;
+            font-weight: 600;
+          }
+        }
+      }
+    }
+  }
+}

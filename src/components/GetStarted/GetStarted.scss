@@ -1,0 +1,65 @@
+@use '../../variables' as *;
+
+.main-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  width: 100%;
+  max-width: 42rem;
+  gap: 2.5rem;
+  padding: 3rem;
+  box-sizing: border-box;
+}
+
+.logo-layout {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.brand-logo {
+  height: 46px;
+  width: auto;
+  object-fit: contain;
+}
+
+.message-box {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.subtitle {
+  font-size: $font-size-m;
+  font-weight: 600;
+  color: $color-prime-text;
+  margin: 0;
+}
+
+.description {
+  color: $color-secondary-text;
+  font-size: $font-size-s;
+  font-weight: 500;
+  margin: 0;
+}
+
+.btn-primary {
+  background-color: $color-prime;
+  color: $color-prime-text;
+  font-size: $font-size-s;
+  padding: 12px 32px;
+  border: none;
+  border-radius: 40px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: opacity 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+}

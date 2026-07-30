@@ -1,0 +1,219 @@
+@use '../../variables' as *;
+
+.track-row {
+  display: flex;
+  align-items: center;
+  padding: $spacing-s $spacing-m;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+  user-select: none;
+
+  // Base hover state for the row
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+
+    .track-number-col {
+      .number {
+        display: none;
+      }
+
+      .play-icon {
+        display: block !important;
+        color: $color-prime-text;
+      }
+    }
+  }
+
+  &.active {
+    .track-number-col .number {
+      color: $color-prime;
+    }
+
+    .track-title-col .track-info .track-title {
+      color: $color-prime;
+    }
+  }
+
+  // Cover Art styling (shared)
+  .track-art,
+  .track-art-placeholder {
+    object-fit: cover;
+    border-radius: 4px;
+    background-color: rgba(255, 255, 255, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: $color-secondary-text;
+  }
+
+  .track-title-col {
+    display: flex;
+    align-items: center;
+    gap: $spacing-m;
+    overflow: hidden;
+
+    .track-info {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      overflow: hidden;
+
+      .track-title {
+        color: $color-prime-text;
+        font-weight: 500;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .track-artist-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        overflow: hidden;
+
+        .audio-badge {
+          font-size: 9px;
+          font-weight: 700;
+          padding: 1px 4px;
+          border-radius: 4px;
+          border: 1px solid currentColor;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          line-height: 1;
+          color: $color-secondary-text;
+
+          // &.badge-hr {
+          //   color: #ffd700; // Gold for Hi-Res
+          // }
+
+          // &.badge-sq {
+          //   color: $color-secondary-text;
+          // }
+        }
+
+        .track-artist {
+          color: $color-secondary-text;
+          font-size: $font-size-s;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+      }
+    }
+  }
+
+  .track-duration-col {
+    color: $color-secondary-text;
+    font-size: $font-size-s;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* WIDE VARIANT */
+  &.wide {
+    gap: $spacing-m;
+
+    .track-number-col {
+      width: 32px;
+      text-align: right;
+      color: $color-secondary-text;
+      font-size: $font-size-s;
+      font-variant-numeric: tabular-nums;
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+
+      .play-icon {
+        display: none;
+        width: 24px;
+        height: 24px;
+        opacity: 0.8;
+        object-fit: contain;
+      }
+    }
+
+    .track-art,
+    .track-art-placeholder {
+      width: 48px;
+      height: 48px;
+      flex-shrink: 0;
+    }
+
+    .track-title-col {
+      flex: 2; // Take up proportional space
+      min-width: 0; // Enables text-overflow
+    }
+
+    .track-album-col {
+      flex: 1;
+      color: $color-secondary-text;
+      font-size: $font-size-s;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-width: 0;
+    }
+
+    .track-duration-col {
+      width: 60px;
+    }
+
+    .track-action-col {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 16px;
+      width: 140px;
+
+      .action-btn {
+        background: none;
+        border: none;
+        color: rgba(255, 255, 255, 0.4);
+        cursor: pointer;
+        padding: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: color 0.2s;
+
+        &:hover {
+          color: $color-prime-text;
+        }
+      }
+    }
+  }
+
+  /* COMPACT VARIANT */
+  &.compact {
+    gap: $spacing-s;
+    padding: $spacing-s; // Tighter padding
+
+    .track-art,
+    .track-art-placeholder {
+      width: 40px;
+      height: 40px;
+    }
+
+    .track-title-col {
+      flex: 1;
+      min-width: 0;
+      gap: $spacing-s;
+
+      .track-info .track-title {
+        font-size: $font-size-s;
+      }
+
+      .track-info .track-artist {
+        font-size: 11px; // Even smaller for compact
+      }
+    }
+
+    .track-duration-col {
+      width: 45px;
+      font-size: 12px;
+    }
+  }
+}

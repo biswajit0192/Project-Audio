@@ -1,0 +1,157 @@
+@use '../../variables' as *;
+
+.dashboard-sidebar {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+  padding: 8px 0;
+
+
+  // Hide scrollbar but keep scrollability if needed
+  overflow-y: auto;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  -ms-overflow-style: none;
+  /* IE and Edge */
+  scrollbar-width: none;
+  /* Firefox */
+
+  .sidebar-header {
+    height: var(--titlebar-height);
+    display: flex;
+    align-items: center;
+    padding: 0 $spacing-xl;
+    margin-bottom: $spacing-m;
+    flex-shrink: 0;
+
+    // Give some leeway for dragging around the logo
+    .sidebar-logo {
+      height: 26px;
+      width: auto;
+      object-fit: contain;
+    }
+  }
+
+  .sidebar-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 0 $spacing-xl;
+  }
+
+  .sidebar-divider {
+    border: none;
+    border-top: 1px solid $color-dark-gray;
+    margin: $spacing-l 0;
+  }
+
+  .sidebar-section {
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: $spacing-xs;
+
+      h3 {
+        color: $color-secondary-text;
+        font-size: $font-size-s;
+        font-weight: 500;
+        margin: 0;
+      }
+
+      .view-all {
+        font-size: $font-size-s;
+        color: rgba(255, 255, 255, 0.4);
+        cursor: pointer;
+        transition: color 0.2s;
+
+        &:hover {
+          color: $color-prime-text;
+        }
+      }
+    }
+  }
+
+  .nav-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 10px 0;
+      cursor: pointer;
+      border-radius: 6px;
+      font-size: $font-size-s;
+      font-weight: 500;
+      position: relative;
+
+      .nav-icon {
+        width: 18px;
+        height: 18px;
+        object-fit: contain;
+        opacity: 0.7;
+
+        &.lucide-icon {
+          color: inherit;
+        }
+      }
+
+      span {
+        transition: all 0.2s ease;
+      }
+
+      &:hover {
+
+        span {
+          transform: translateX(4px);
+        }
+      }
+
+      &.active {
+        color: $color-prime;
+        // background-color: rgba(249, 46, 22, 0.08); // Subtle red background
+
+        .nav-icon {
+          opacity: 1;
+          // A crude but effective way to turn a white SVG red if it's an img tag
+          // Alternatively, since we know it's active, we assume the icon supports it or we use CSS filter
+          filter: invert(33%) sepia(87%) saturate(5899%) hue-rotate(352deg) brightness(98%) contrast(98%);
+
+          &.lucide-icon {
+            color: $color-prime;
+            filter: none;
+          }
+        }
+
+        &::before {
+          content: '';
+          position: absolute;
+          left: -20px; // Position exactly at the edge of the padding
+          top: 50%;
+          transform: translateY(-50%);
+          height: 24px;
+          width: 4px;
+          background-color: $color-prime;
+          border-radius: 0 4px 4px 0;
+        }
+
+        &:hover {
+          span {
+            transform: none;
+          }
+        }
+      }
+    }
+  }
+
+  .settings-section {
+    margin-top: auto; // Pushes settings to the very bottom if there's space
+  }
+}

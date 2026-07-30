@@ -1,0 +1,101 @@
+@use '../../variables' as *;
+
+.album-card {
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  background-color: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.2s;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+
+    .play-overlay {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .album-cover-container {
+    width: 100%;
+    aspect-ratio: 1;
+    position: relative;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 12px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+
+    .album-cover {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .album-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      
+      .music-note {
+        font-size: 48px;
+        color: rgba(255, 255, 255, 0.1);
+      }
+    }
+
+    .play-overlay {
+      position: absolute;
+      bottom: 8px;
+      right: 8px;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+
+      .play-btn {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background-color: $color-prime;
+        color: white;
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+
+        &:hover {
+          transform: scale(1.05);
+        }
+      }
+    }
+  }
+
+  .album-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    .album-title {
+      color: $color-prime-text;
+      font-size: 15px;
+      font-weight: 600;
+      margin: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .album-artist {
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 13px;
+      margin: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+}

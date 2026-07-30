@@ -1,0 +1,44 @@
+@use '../../variables' as *;
+
+.dashboard-layout {
+  display: grid;
+  // Left: 240px, Center: 1fr, Right: 380px
+  grid-template-columns: 240px 1fr 410px;
+  // Top row: 1fr (takes remaining height), Bottom row: 100px
+  grid-template-rows: 1fr 100px;
+
+  // Height is exactly 100vh so it extends to the very top (under the transparent titlebar)
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background-color: darken($color-base, 2%); // slightly darker base for the layout
+
+  // Grid Areas
+  .dashboard-left {
+    grid-column: 1 / 2;
+    grid-row: 1 / 2;
+    overflow-y: auto; // Independently scrollable
+  }
+
+  .dashboard-center {
+    grid-column: 2 / 3;
+    grid-row: 1 / 2;
+    overflow: hidden; // Prevent full column scroll
+    display: flex;
+    flex-direction: column;
+    padding: $titlebar-height $spacing-s $spacing-s $spacing-s; // Prevent content from hiding under titlebar
+  }
+
+  .dashboard-right {
+    grid-column: 3 / 4;
+    grid-row: 1 / 2;
+    overflow-y: auto; // Independently scrollable
+    padding: $titlebar-height $spacing-s $spacing-s $spacing-s; // Prevent content from hiding under titlebar
+  }
+
+  .dashboard-bottom {
+    grid-column: 1 / -1; // Spans all columns
+    grid-row: 2 / 3;
+    z-index: 10;
+  }
+}

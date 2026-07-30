@@ -1,0 +1,144 @@
+@use '../../variables' as *;
+
+.auth-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  width: 100%;
+  max-width: 24rem;
+  padding: 2rem;
+  background-color: transparent;
+  border-radius: 1rem;
+}
+
+.auth-title {
+  font-size: $font-size-xl;
+  font-weight: 600;
+  color: $color-prime-text;
+  margin-bottom: $spacing-l;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: $spacing-m;
+}
+
+.auth-input {
+  background-color: $color-base;
+  color: $color-prime-text;
+  border: 1px solid transparent;
+  padding: $spacing-m $spacing-l;
+  border-radius: 8px;
+  font-size: $font-size-s;
+  outline: none;
+  transition: border-color 0.2s;
+
+  &::placeholder {
+    color: $color-secondary-text;
+  }
+
+  &:focus {
+    border-color: $color-prime;
+  }
+}
+
+.auth-btn {
+  background-color: $color-prime;
+  color: $color-prime-text;
+  font-size: $font-size-s;
+  padding: $spacing-m;
+  border: none;
+  border-radius: 40px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: opacity 0.2s;
+  margin-top: $spacing-s;
+
+  &:hover {
+    opacity: 0.9;
+  }
+}
+
+.auth-links {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-s;
+  margin-top: $spacing-xl;
+  font-size: $font-size-s;
+
+  a {
+    color: $color-secondary-text;
+    text-decoration: none;
+    transition: color 0.2s;
+
+    &:hover {
+      color: $color-prime-text;
+    }
+  }
+
+  .auth-link-primary {
+    color: $color-prime;
+
+    &:hover {
+      opacity: 0.8;
+    }
+  }
+
+  .auth-divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    color: $color-secondary-text;
+    margin: $spacing-l 0 $spacing-s 0;
+
+    &::before,
+    &::after {
+      content: '';
+      flex: 1;
+      border-bottom: 1px solid $color-dark-gray;
+    }
+
+    span {
+      padding: 0 $spacing-m;
+    }
+  }
+
+  .auth-skip-link {
+    color: $color-secondary-text;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s;
+    margin-top: $spacing-xs;
+
+    &:hover {
+      color: $color-prime-text;
+    }
+  }
+
+  .auth-cancel-btn {
+    background-color: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.85);
+    font-size: $font-size-s;
+    padding: 10px 28px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 40px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    margin-top: $spacing-xs;
+
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.3);
+      color: #ffffff;
+      transform: translateY(-1px);
+    }
+
+    &:active {
+      transform: translateY(0);
+    }
+  }
+}

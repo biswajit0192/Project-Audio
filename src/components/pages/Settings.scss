@@ -1,0 +1,270 @@
+.settings-page {
+  padding: 40px 60px;
+  color: #fff;
+  height: 100%;
+  overflow-y: auto;
+
+  h1 {
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: 40px;
+    color: #fff;
+    letter-spacing: -0.5px;
+  }
+
+  .settings-list {
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+    padding-bottom: 100px; // space for player bar
+  }
+
+  .settings-section {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+
+    .section-header {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding-bottom: 12px;
+
+      h2 {
+        font-size: 20px;
+        font-weight: 600;
+        color: #fff;
+        margin: 0;
+      }
+    }
+
+    .section-content {
+      display: flex;
+      flex-direction: column;
+      
+      .login-callout {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: rgba(229, 57, 53, 0.1);
+        padding: 20px;
+        border-radius: 8px;
+        
+        .callout-text {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          
+          .title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #fff;
+          }
+          .desc {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.6);
+          }
+        }
+      }
+
+      .profile-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 0;
+
+        .profile-info {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+
+          .avatar {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+          }
+
+          .user-details {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+
+            .name {
+              font-size: 16px;
+              font-weight: 600;
+              color: #fff;
+            }
+
+            .email {
+              font-size: 13px;
+              color: rgba(255, 255, 255, 0.5);
+            }
+          }
+        }
+
+        .profile-actions {
+          display: flex;
+          gap: 12px;
+        }
+      }
+
+      .setting-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        
+        &:last-child {
+          border-bottom: none;
+        }
+
+        .setting-label {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+
+          .title {
+            font-size: 15px;
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.9);
+          }
+
+          .desc {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.5);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 400px;
+          }
+        }
+
+        .setting-action {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          
+          &.flex-actions {
+            gap: 12px;
+          }
+
+          button {
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            
+            &:disabled {
+              opacity: 0.5;
+              cursor: not-allowed;
+            }
+            
+            &.loading {
+              cursor: wait;
+              background: rgba(255, 255, 255, 0.1) !important;
+              color: rgba(255, 255, 255, 0.5) !important;
+            }
+          }
+
+          .primary-btn {
+            background: #fff;
+            color: #000;
+
+            &:hover:not(:disabled) {
+              transform: scale(1.04);
+              background: #f0f0f0;
+            }
+          }
+
+          .secondary-btn {
+            background: transparent;
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+
+            &:hover:not(:disabled) {
+              border-color: #fff;
+              transform: scale(1.04);
+            }
+          }
+
+          .danger-btn {
+            background: transparent;
+            color: #e53935;
+            border: 1px solid rgba(229, 57, 53, 0.5);
+
+            &:hover:not(:disabled) {
+              background: rgba(229, 57, 53, 0.1);
+              border-color: #e53935;
+              transform: scale(1.04);
+            }
+          }
+
+          .toggle {
+            position: relative;
+            width: 44px;
+            height: 24px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.3s;
+
+            &.active {
+              background: #e53935; // keep brand accent
+              
+              .knob {
+                transform: translateX(20px);
+              }
+            }
+
+            .knob {
+              position: absolute;
+              top: 2px;
+              left: 2px;
+              width: 20px;
+              height: 20px;
+              background: #fff;
+              border-radius: 50%;
+              transition: transform 0.3s ease;
+              box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            }
+          }
+
+          .badge {
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.7);
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            
+            &.active {
+              background: rgba(229, 57, 53, 0.15);
+              color: #ff5252;
+            }
+            
+            &.inactive {
+              background: transparent;
+              border: 1px solid rgba(255, 255, 255, 0.2);
+              color: rgba(255, 255, 255, 0.4);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // custom scrollbar
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+  }
+}

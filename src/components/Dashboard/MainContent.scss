@@ -1,0 +1,110 @@
+@use '../../variables' as *;
+
+.dashboard-main-content {
+  padding: $spacing-4xl $spacing-4xl 0 $spacing-4xl; // Remove bottom padding so scrollbar reaches the end
+  color: $color-prime-text;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background-color: $color-base;
+  border-radius: $section-border-radium-xl;
+}
+
+.home-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.dashboard-title {
+  font-size: $font-size-xl;
+  font-weight: 700;
+  margin-bottom: $spacing-l;
+  color: $color-prime;
+}
+
+.dashboard-empty {
+  font-size: $font-size-m;
+  color: $color-secondary-text;
+  text-align: center;
+  margin-top: 4rem;
+}
+
+.music-list {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+
+  .music-count {
+    color: $color-secondary-text;
+    margin-bottom: $spacing-m;
+  }
+
+  .music-list-header {
+    display: flex;
+    align-items: center;
+    gap: $spacing-m;
+    padding: $spacing-s $spacing-m;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    margin-bottom: $spacing-m;
+    color: $color-secondary-text;
+    font-size: $font-size-s;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+
+    .col-num {
+      width: 32px;
+      text-align: right;
+    }
+
+    .col-title {
+      flex: 2;
+      padding-left: 0; // Header aligns with the cover art directly
+    }
+
+    .col-album {
+      flex: 1;
+    }
+
+    .col-duration {
+      width: 60px;
+    }
+
+    .col-action {
+      width: 140px;
+      text-align: right;
+      padding-right: 16px; // Tweak this if needed to align perfectly over the MoreVertical dots
+    }
+  }
+
+  .tracks-container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-bottom: 2rem; // Restore the bottom padding inside the scroll view
+
+    // Custom thin scrollbar for a sleeker look
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+    }
+
+    &::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+  }
+}
