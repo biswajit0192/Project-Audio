@@ -1,28 +1,161 @@
 @use '../../variables' as *;
 
+.dashboard-main-wrapper {
+  background-color: $color-base;
+  border-radius: $section-border-radium-xl;
+  overflow: hidden;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
 .dashboard-main-content {
-  padding: $spacing-4xl $spacing-4xl 0 $spacing-4xl; // Remove bottom padding so scrollbar reaches the end
+  padding: $spacing-2xl $spacing-2xl 0 $spacing-xl; // Remove bottom padding so scrollbar reaches the end
   color: $color-prime-text;
   display: flex;
   flex-direction: column;
   height: 100%;
-  overflow: hidden;
-  background-color: $color-base;
-  border-radius: $section-border-radium-xl;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: none; // Prevent vertical scroll bounce (rubber-banding)
+
+
+  // Custom thin scrollbar for a sleeker look
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
 }
 
 .home-content {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  overflow: hidden;
+  overflow: visible;
+  gap: $spacing-2xl;
 }
 
-.dashboard-title {
-  font-size: $font-size-xl;
-  font-weight: 700;
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: $spacing-l;
-  color: $color-prime;
+
+  .section-title {
+    font-size: $font-size-headings;
+    font-weight: 600;
+    color: #fff;
+    margin: 0;
+  }
+
+  .section-actions {
+    display: flex;
+    align-items: center;
+    gap: $spacing-m;
+    color: $color-secondary-text;
+
+    .view-all {
+      font-size: $font-size-base;
+      cursor: pointer;
+      margin-right: $spacing-s;
+
+      &:hover {
+        color: #fff;
+      }
+    }
+
+    .nav-btn {
+      background: none;
+      border: none;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: transform 0.2s ease;
+
+      &:hover {
+        transform: scale(1.05);
+      }
+
+      img {
+        width: 28px;
+        height: 28px;
+      }
+    }
+  }
+
+  .tracks-actions {
+    gap: $spacing-xs;
+
+    .tracks-meta {
+      font-size: $font-size-base;
+    }
+
+    .icon-btn {
+      background: none;
+      border: none;
+      color: $color-secondary-text;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.2s ease, opacity 0.2s ease;
+      opacity: $button-inactive;
+
+      &:hover,
+      &.active {
+        color: #fff;
+        opacity: $button-active;
+      }
+
+      &.play-all-btn {
+        padding: 0;
+        border-radius: 50%;
+        opacity: $button-active;
+
+        &:hover {
+          transform: scale(1.05);
+        }
+      }
+    }
+  }
+}
+
+.recent-albums-section {
+
+  .albums-container {
+    display: flex;
+    gap: $spacing-l;
+    overflow-x: auto;
+    overflow-y: hidden; // Force strict horizontal axis
+    overscroll-behavior-x: contain; // Prevent horizontal scroll from chaining to browser navigation
+    overscroll-behavior-y: none; // Prevent vertical wobble
+    padding-bottom: $spacing-s;
+
+    // Hide scrollbar for a cleaner look
+    &::-webkit-scrollbar {
+      display: none;
+    }
+
+    scrollbar-width: none;
+  }
+}
+
+.recent-tracks-section {
+  display: flex;
+  flex-direction: column;
 }
 
 .dashboard-empty {
@@ -35,23 +168,21 @@
 .music-list {
   display: flex;
   flex-direction: column;
-  flex: 1;
-  overflow: hidden;
 
   .music-count {
-    color: $color-secondary-text;
-    margin-bottom: $spacing-m;
+    display: none; // Handled by tracks meta now
   }
 
   .music-list-header {
     display: flex;
     align-items: center;
-    gap: $spacing-m;
-    padding: $spacing-s $spacing-m;
+    justify-content: space-between;
+    padding: 0 0 $spacing-s 0;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     margin-bottom: $spacing-m;
     color: $color-secondary-text;
     font-size: $font-size-s;
+    font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 1px;
 
@@ -61,22 +192,25 @@
     }
 
     .col-title {
-      flex: 2;
+      width: 46%;
       padding-left: 0; // Header aligns with the cover art directly
     }
 
     .col-album {
-      flex: 1;
+      width: 18%;
     }
 
     .col-duration {
-      width: 60px;
+      width: 5%;
+    }
+
+    .col-source {
+      width: 5%;
     }
 
     .col-action {
-      width: 140px;
+      width: 13%;
       text-align: right;
-      padding-right: 16px; // Tweak this if needed to align perfectly over the MoreVertical dots
     }
   }
 
@@ -84,27 +218,6 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
-    flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
     padding-bottom: 2rem; // Restore the bottom padding inside the scroll view
-
-    // Custom thin scrollbar for a sleeker look
-    &::-webkit-scrollbar {
-      width: 6px;
-    }
-
-    &::-webkit-scrollbar-track {
-      background: transparent;
-    }
-
-    &::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 10px;
-    }
-
-    &::-webkit-scrollbar-thumb:hover {
-      background: rgba(255, 255, 255, 0.2);
-    }
   }
 }

@@ -39,7 +39,7 @@
 
 .description {
   color: $color-secondary-text;
-  font-size: $font-size-s;
+  font-size: $font-size-base;
   font-weight: 500;
   margin: 0;
 }
@@ -47,7 +47,7 @@
 .btn-primary {
   background-color: $color-prime;
   color: $color-prime-text;
-  font-size: $font-size-s;
+  font-size: $font-size-base;
   padding: 12px 32px;
   border: none;
   border-radius: 40px;

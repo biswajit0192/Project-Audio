@@ -17,7 +17,7 @@ interface DashboardProps {
 
 export default function Dashboard({ searchQuery }: DashboardProps) {
   const location = useLocation();
-  const { currentTrack, playContext } = useQueue();
+  const { currentTrack, playContext, enrichQueue } = useQueue();
   
   // Retrieve the scanned track objects passed from SyncPage, or initialize empty
   const [musicFiles, setMusicFiles] = useState<Track[]>(location.state?.musicFiles || []);
@@ -47,6 +47,12 @@ export default function Dashboard({ searchQuery }: DashboardProps) {
     }
   }, [location.state?.musicFiles]);
 
+  useEffect(() => {
+    if (musicFiles.length > 0) {
+      enrichQueue(musicFiles);
+    }
+  }, [musicFiles]);
+
   const [currentView, setCurrentView] = useState<'home' | 'settings'>(
     location.state?.activeView || 'home'
   );
@@ -57,12 +63,7 @@ export default function Dashboard({ searchQuery }: DashboardProps) {
     }
   }, [location.state]);
 
-  const handleTrackSelect = (track: Track) => {
-    const idx = musicFiles.findIndex(t => t.id === track.id);
-    if (idx !== -1) {
-      playContext(musicFiles, idx);
-    }
-  };
+  // Track selection is handled directly inside MainContent now
 
   return (
     <div className="dashboard-layout">
@@ -71,17 +72,18 @@ export default function Dashboard({ searchQuery }: DashboardProps) {
       </div>
       
       <div className="dashboard-center">
-        <div className="dashboard-main-content">
-          {currentView === 'settings' ? (
-            <Settings />
-          ) : (
-            <MainContent 
-              musicFiles={musicFiles} 
-              currentTrackId={currentTrack?.id} 
-              onTrackSelect={handleTrackSelect}
-              searchQuery={searchQuery}
-            />
-          )}
+        <div className="dashboard-main-wrapper">
+          <div className="dashboard-main-content">
+            {currentView === 'settings' ? (
+              <Settings />
+            ) : (
+              <MainContent 
+                musicFiles={musicFiles} 
+                currentTrackId={currentTrack?.id} 
+                searchQuery={searchQuery}
+              />
+            )}
+          </div>
         </div>
       </div>
       

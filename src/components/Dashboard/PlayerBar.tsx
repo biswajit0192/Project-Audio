@@ -6,10 +6,11 @@ import { Heart } from 'lucide-react';
 
 // Center Icons
 import iconShuffle from '../../assets/playing-tab-icons/Suffle Songs.svg';
-import iconPrev from '../../assets/playing-tab-icons/Previous Track.svg';
+import iconShuffleActive from '../../assets/playing-tab-icons/Suffle Songs Active.svg';
 import iconPlay from '../../assets/playing-tab-icons/Play Btn.svg';
 import iconPause from '../../assets/playing-tab-icons/Pause Btn.svg';
-import iconNext from '../../assets/playing-tab-icons/Next Track.svg';
+import iconPrev from '../../assets/playing-tab-icons/Next Track.svg';
+import iconNext from '../../assets/playing-tab-icons/Previous Track.svg';
 import iconRepeat from '../../assets/playing-tab-icons/Repeat Btn.svg';
 
 // Right Icons
@@ -34,17 +35,17 @@ export default function PlayerBar() {
   const [currentTime, setCurrentTime] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const progressTrackRef = useRef<HTMLDivElement>(null);
-  
+
   const [volumeDb, setVolumeDb] = useState<number>(-4.0);
   const [prevVolumeDb, setPrevVolumeDb] = useState<number>(-4.0);
   const isVolumeDraggingRef = useRef(false);
   const volumeTrackRef = useRef<HTMLDivElement>(null);
-  
+
   const volumeDbRef = useRef(volumeDb);
   useEffect(() => {
     volumeDbRef.current = volumeDb;
   }, [volumeDb]);
-  
+
   const nextTrackRef = useRef(nextTrack);
   useEffect(() => {
     nextTrackRef.current = nextTrack;
@@ -59,7 +60,7 @@ export default function PlayerBar() {
       if (unlistenFn) unlistenFn();
     };
   }, []);
-  
+
   const isPromptingRef = useRef(false);
   const [volumeWarning, setVolumeWarning] = useState<{
     show: boolean;
@@ -68,7 +69,7 @@ export default function PlayerBar() {
   }>({ show: false, volume: 0, resolve: null });
 
   const [showDeviceList, setShowDeviceList] = useState(false);
-  const [audioDevices, setAudioDevices] = useState<{id: string, name: string, is_default: boolean}[]>([]);
+  const [audioDevices, setAudioDevices] = useState<{ id: string, name: string, is_default: boolean }[]>([]);
 
   const promptHighVolume = (currentVolume: number): Promise<boolean> => {
     return new Promise((resolve) => {
@@ -86,7 +87,7 @@ export default function PlayerBar() {
   const handleDeviceListClick = async () => {
     if (!showDeviceList) {
       try {
-        const devices = await invoke<{id: string, name: string, is_default: boolean}[]>('get_audio_devices');
+        const devices = await invoke<{ id: string, name: string, is_default: boolean }[]>('get_audio_devices');
         setAudioDevices(devices);
       } catch (e) {
         console.error('Failed to get audio devices:', e);
@@ -100,7 +101,7 @@ export default function PlayerBar() {
       await invoke('switch_audio_device', { deviceId });
       setShowDeviceList(false);
       // Also fetch them again right after to update the default dot
-      const devices = await invoke<{id: string, name: string, is_default: boolean}[]>('get_audio_devices');
+      const devices = await invoke<{ id: string, name: string, is_default: boolean }[]>('get_audio_devices');
       setAudioDevices(devices);
     } catch (e) {
       console.error('Failed to switch audio device:', e);
@@ -114,7 +115,7 @@ export default function PlayerBar() {
       unlistenDevices = await listen('audio-devices-changed', async () => {
         if (showDeviceList) {
           try {
-            const devices = await invoke<{id: string, name: string, is_default: boolean}[]>('get_audio_devices');
+            const devices = await invoke<{ id: string, name: string, is_default: boolean }[]>('get_audio_devices');
             setAudioDevices(devices);
           } catch (e) {
             console.error('Failed to get audio devices:', e);
@@ -167,10 +168,10 @@ export default function PlayerBar() {
       });
       return unlisten;
     };
-    
+
     let unlistenFn: (() => void) | undefined;
     setupListener().then(f => { unlistenFn = f; });
-    
+
     return () => {
       if (unlistenFn) unlistenFn();
     };
@@ -197,7 +198,7 @@ export default function PlayerBar() {
     const playNewTrack = async () => {
       if (currentTrack && currentTrack.path !== playingTrackPath) {
         const currentVolume = volumeDbRef.current;
-        if (!isPlayingRef.current && currentVolume > -25.0) {
+        if (!isPlayingRef.current && currentVolume > -17.0) {
           if (isPromptingRef.current) return;
           isPromptingRef.current = true;
           const isConfirmed = await promptHighVolume(currentVolume);
@@ -216,7 +217,7 @@ export default function PlayerBar() {
         }
       }
     };
-    
+
     playNewTrack();
   }, [currentTrack, playingTrackPath]);
 
@@ -232,7 +233,7 @@ export default function PlayerBar() {
     const ext = currentTrack.fileName.split('.').pop()?.toUpperCase() || '';
     const sampleRateKhz = currentTrack.sampleRate ? (currentTrack.sampleRate / 1000).toFixed(1) : '';
     const bitDepth = currentTrack.bitDepth ? currentTrack.bitDepth : '';
-    
+
     audioQualityStr = ext;
     if (bitDepth && sampleRateKhz) {
       audioQualityStr += ` ${bitDepth}/${sampleRateKhz}`;
@@ -249,7 +250,7 @@ export default function PlayerBar() {
         setIsPlaying(false);
       } else {
         const currentVolume = volumeDbRef.current;
-        if (currentVolume > -25.0) {
+        if (currentVolume > -17.0) {
           if (isPromptingRef.current) return;
           isPromptingRef.current = true;
           const isConfirmed = await promptHighVolume(currentVolume);
@@ -290,7 +291,7 @@ export default function PlayerBar() {
     const newTime = percent * currentTrack.durationSecs;
     setCurrentTime(newTime);
     setIsDragging(false);
-    
+
     document.removeEventListener('mousemove', handleSeekUpdate);
     document.removeEventListener('mouseup', handleSeekEnd);
 
@@ -319,7 +320,7 @@ export default function PlayerBar() {
     let db = -64.0 + (percent * 64.0);
     db = Math.round(db); // snap to 1.0 steps
     setVolumeDb(db);
-    
+
     // Map dB (-64 to 0) to Scalar (0.0 to 1.0)
     const scalar = db <= -64.0 ? 0.0 : Math.pow(10, db / 20);
     invoke('set_system_volume', { scalar }).catch(console.error);
@@ -372,10 +373,10 @@ export default function PlayerBar() {
           <div className="track-info">
             <div className="track-art">
               {currentTrack.coverArt && (
-                <img 
-                  src={currentTrack.coverArt} 
-                  alt="Cover Art" 
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} 
+                <img
+                  src={currentTrack.coverArt}
+                  alt="Cover Art"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }}
                 />
               )}
             </div>
@@ -402,10 +403,14 @@ export default function PlayerBar() {
       {/* CENTER SECTION */}
       <div className="player-center" style={{ opacity: currentTrack ? 1 : 0.3, pointerEvents: currentTrack ? 'auto' : 'none' }}>
         <div className="player-controls">
-          <button className="control-btn" onClick={toggleShuffle} title="Shuffle">
-            <img src={iconShuffle} alt="Shuffle" style={{ opacity: isShuffled ? 1 : 0.4 }} />
+          <button
+            className={`control-btn ${isShuffled ? 'active' : ''}`}
+            onClick={toggleShuffle}
+            title="Shuffle"
+          >
+            <img src={isShuffled ? iconShuffleActive : iconShuffle} alt="Shuffle" />
           </button>
-          <button className="control-btn" onClick={previousTrack} title="Previous"><img src={iconPrev} alt="Previous" /></button>
+          <button className="control-btn" onClick={previousTrack} title="Previous"><img src={iconNext} alt="Previous" /></button>
           <button className="control-btn play-btn" onClick={handlePlayClick} title={isPlaying ? "Pause" : "Play"}>
             {isPlaying ? (
               <img src={iconPause} alt="Pause" />
@@ -413,21 +418,21 @@ export default function PlayerBar() {
               <img src={iconPlay} alt="Play" />
             )}
           </button>
-          <button className="control-btn" onClick={nextTrack} title="Next"><img src={iconNext} alt="Next" /></button>
+          <button className="control-btn" onClick={nextTrack} title="Next"><img src={iconPrev} alt="Next" /></button>
           <button className="control-btn" onClick={toggleRepeat} title={`Repeat: ${repeatMode}`}>
-            <img src={iconRepeat} alt="Repeat" style={{ opacity: repeatMode !== 'off' ? 1 : 0.4, filter: repeatMode === 'one' ? 'hue-rotate(90deg)' : 'none' }} />
+            <img src={iconRepeat} alt="Repeat" style={{ filter: repeatMode === 'one' ? 'hue-rotate(90deg)' : 'none' }} />
           </button>
         </div>
 
         <div className="progress-bar-container">
           <span className="time current-time">{formatDuration(currentTime)}</span>
-          <div 
-            className="progress-track" 
-            ref={progressTrackRef} 
+          <div
+            className="progress-track"
+            ref={progressTrackRef}
             onMouseDown={handleSeekStart}
           >
-            <div 
-              className="progress-fill" 
+            <div
+              className="progress-fill"
               style={{ width: `${currentTrack ? (currentTime / currentTrack.durationSecs) * 100 : 0}%` }}
             >
               <div className="progress-thumb" />
@@ -467,10 +472,10 @@ export default function PlayerBar() {
               }}>+</button>
             </div>
             <div className="volume-bar-wrapper">
-              <img 
-                src={volumeDb <= -64.0 ? iconMute : iconVolume} 
-                alt="Volume" 
-                className="volume-icon" 
+              <img
+                src={volumeDb <= -64.0 ? iconMute : iconVolume}
+                alt="Volume"
+                className="volume-icon"
                 onClick={handleMuteToggle}
                 style={{ cursor: 'pointer' }}
               />
@@ -496,8 +501,8 @@ export default function PlayerBar() {
               </div>
               <div className="device-list-content">
                 {audioDevices.map(device => (
-                  <div 
-                    key={device.id} 
+                  <div
+                    key={device.id}
                     className={`device-item ${device.is_default ? 'default' : ''}`}
                     onClick={() => handleDeviceSelect(device.id)}
                   >

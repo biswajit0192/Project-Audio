@@ -3,7 +3,7 @@
 .track-row {
   display: flex;
   align-items: center;
-  padding: $spacing-s $spacing-m;
+  padding: $spacing-s 0;
   border-radius: 6px;
   cursor: pointer;
   transition: background-color 0.2s ease, transform 0.1s ease;
@@ -61,6 +61,7 @@
 
       .track-title {
         color: $color-prime-text;
+        font-size: $font-size-titles;
         font-weight: 500;
         white-space: nowrap;
         overflow: hidden;
@@ -96,7 +97,8 @@
 
         .track-artist {
           color: $color-secondary-text;
-          font-size: $font-size-s;
+          font-size: $font-size-base;
+          font-weight: 500;
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
@@ -107,20 +109,20 @@
 
   .track-duration-col {
     color: $color-secondary-text;
-    font-size: $font-size-s;
-    text-align: right;
+    font-size: $font-size-base;
+    text-align: left;
     font-variant-numeric: tabular-nums;
   }
 
   /* WIDE VARIANT */
   &.wide {
-    gap: $spacing-m;
+    justify-content: space-between;
 
     .track-number-col {
       width: 32px;
       text-align: right;
       color: $color-secondary-text;
-      font-size: $font-size-s;
+      font-size: $font-size-base;
       font-variant-numeric: tabular-nums;
       display: flex;
       justify-content: flex-end;
@@ -135,22 +137,22 @@
       }
     }
 
-    .track-art,
-    .track-art-placeholder {
-      width: 48px;
-      height: 48px;
-      flex-shrink: 0;
-    }
-
     .track-title-col {
-      flex: 2; // Take up proportional space
+      width: 46%; // Take up proportional space
       min-width: 0; // Enables text-overflow
+
+      .track-art,
+      .track-art-placeholder {
+        width: 48px;
+        height: 48px;
+        flex-shrink: 0;
+      }
     }
 
     .track-album-col {
-      flex: 1;
+      width: 18%;
       color: $color-secondary-text;
-      font-size: $font-size-s;
+      font-size: $font-size-base;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -158,15 +160,38 @@
     }
 
     .track-duration-col {
-      width: 60px;
+      width: 5%;
+    }
+
+    .track-source-col {
+      width: 5%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      .action-btn {
+        background: none;
+        border: none;
+        color: rgba(255, 255, 255, 0.4);
+        cursor: pointer;
+        padding: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: color 0.2s;
+
+        &:hover {
+          color: $color-prime-text;
+        }
+      }
     }
 
     .track-action-col {
       display: flex;
       align-items: center;
       justify-content: flex-end;
-      gap: 16px;
-      width: 140px;
+      gap: $spacing-s;
+      width: 12%;
 
       .action-btn {
         background: none;
@@ -203,7 +228,7 @@
       gap: $spacing-s;
 
       .track-info .track-title {
-        font-size: $font-size-s;
+        font-size: $font-size-base;
       }
 
       .track-info .track-artist {

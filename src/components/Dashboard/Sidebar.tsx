@@ -22,15 +22,11 @@ export default function Sidebar({ activeView, onNavigate }: SidebarProps) {
       <div className="sidebar-header" data-tauri-drag-region>
         <img src={logoMain} alt="HertzSonic" className="sidebar-logo" data-tauri-drag-region />
       </div>
-      
+
       <div className="sidebar-content">
-        
+
         {/* Connected Section */}
         <div className="sidebar-section">
-          <div className="section-header">
-            <h3>Connected</h3>
-            <span className="view-all">View All</span>
-          </div>
           <ul className="nav-list">
             <li className="nav-item">
               <img src={iconConnectedDevice} alt="Connected" className="nav-icon" />
@@ -47,7 +43,7 @@ export default function Sidebar({ activeView, onNavigate }: SidebarProps) {
             <h3>Menu</h3>
           </div>
           <ul className="nav-list">
-            <li 
+            <li
               className={`nav-item ${activeView === 'home' ? 'active' : ''}`}
               onClick={() => onNavigate('home')}
             >
@@ -98,7 +94,7 @@ export default function Sidebar({ activeView, onNavigate }: SidebarProps) {
         {/* Settings Section */}
         <div className="sidebar-section settings-section">
           <ul className="nav-list">
-            <li 
+            <li
               className={`nav-item ${activeView === 'settings' ? 'active' : ''}`}
               onClick={() => onNavigate('settings')}
             >

@@ -32,7 +32,7 @@
   border: 1px solid transparent;
   padding: $spacing-m $spacing-l;
   border-radius: 8px;
-  font-size: $font-size-s;
+  font-size: $font-size-base;
   outline: none;
   transition: border-color 0.2s;
 
@@ -48,7 +48,7 @@
 .auth-btn {
   background-color: $color-prime;
   color: $color-prime-text;
-  font-size: $font-size-s;
+  font-size: $font-size-base;
   padding: $spacing-m;
   border: none;
   border-radius: 40px;
@@ -67,7 +67,7 @@
   flex-direction: column;
   gap: $spacing-s;
   margin-top: $spacing-xl;
-  font-size: $font-size-s;
+  font-size: $font-size-base;
 
   a {
     color: $color-secondary-text;
@@ -121,7 +121,7 @@
   .auth-cancel-btn {
     background-color: rgba(255, 255, 255, 0.06);
     color: rgba(255, 255, 255, 0.85);
-    font-size: $font-size-s;
+    font-size: $font-size-base;
     padding: 10px 28px;
     border: 1px solid rgba(255, 255, 255, 0.15);
     border-radius: 40px;

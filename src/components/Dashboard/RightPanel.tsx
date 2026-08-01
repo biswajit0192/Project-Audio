@@ -4,7 +4,6 @@ import { useQueue } from '../../context/QueueContext';
 import { PlusCircle, MoreVertical } from 'lucide-react';
 
 export default function RightPanel() {
-  const [activeTab, setActiveTab] = useState<'queue' | 'recent'>('queue');
   const { queue, currentIndex, removeFromQueue, playContext } = useQueue();
 
 
@@ -22,24 +21,12 @@ export default function RightPanel() {
   return (
     <div className="dashboard-right-panel">
       <div className="right-panel-header">
-        <button 
-          className={`tab-btn ${activeTab === 'queue' ? 'active' : ''}`}
-          onClick={() => setActiveTab('queue')}
-        >
-          Queue
-        </button>
-        <button 
-          className={`tab-btn ${activeTab === 'recent' ? 'active' : ''}`}
-          onClick={() => setActiveTab('recent')}
-        >
-          Recently Played
-        </button>
+        <h2 className="section-title">Queue</h2>
       </div>
 
       <div className="right-panel-content">
-        {activeTab === 'queue' && (
-          <div className="queue-view">
-            <div className="queue-list-section">
+        <div className="queue-view">
+          <div className="queue-list-section">
               {queue.length === 0 ? (
                 <div className="placeholder-text">Queue is empty</div>
               ) : (
@@ -79,16 +66,7 @@ export default function RightPanel() {
               )}
             </div>
           </div>
-        )}
-
-        {activeTab === 'recent' && (
-           <div className="recent-view">
-             <div className="placeholder-box">
-                Recently played tracks will appear here
-             </div>
-           </div>
-        )}
-      </div>
+        </div>
     </div>
   );
 }

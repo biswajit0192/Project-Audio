@@ -1,8 +1,9 @@
 @use '../../variables' as *;
 
 .dashboard-right-panel {
-  padding: 0;
+  padding: $spacing-2xl 0 $spacing-2xl $spacing-2xl; // Right padding moved to children for scrollbar edge alignment
   background-color: $color-base;
+  gap: $spacing-l;
   height: 100%;
   border-radius: $section-border-radium-xl;
   display: flex;
@@ -11,49 +12,44 @@
 
   .right-panel-header {
     display: flex;
-    padding: $spacing-l $spacing-l 0;
     gap: $spacing-m;
-    
-    .tab-btn {
-      background: none;
-      border: none;
-      color: rgba(255, 255, 255, 0.5);
-      font-size: 16px;
-      font-weight: 500;
-      padding: 0 0 $spacing-xs 0;
-      cursor: pointer;
-      border-bottom: 2px solid transparent;
-      transition: color 0.2s ease, border-color 0.2s ease;
+    padding-right: $spacing-l;
 
-      &.active {
-        color: white;
-        border-bottom-color: $color-prime;
-      }
-
-      &:hover:not(.active) {
-        color: rgba(255, 255, 255, 0.8);
-      }
+    .section-title {
+      font-size: $font-size-headings;
+      font-weight: 600;
+      color: #fff;
+      margin: 0;
     }
   }
 
   .right-panel-content {
     flex: 1;
     overflow-y: auto;
-    padding: $spacing-l;
+    padding-right: $spacing-l;
 
     /* Custom scrollbar for this panel */
     &::-webkit-scrollbar {
-      width: 4px;
+      width: 6px;
     }
+
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
     &::-webkit-scrollbar-thumb {
       background: rgba(255, 255, 255, 0.1);
-      border-radius: 4px;
+      border-radius: 10px;
+    }
+
+    &::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.2);
     }
   }
 
   h3 {
     color: $color-secondary-text;
-    font-size: $font-size-s;
+    font-size: $font-size-base;
     text-transform: uppercase;
     letter-spacing: 1px;
     margin-bottom: $spacing-m;
@@ -62,14 +58,13 @@
   .queue-list-section {
     .placeholder-text {
       color: $color-secondary-text;
-      font-size: $font-size-s;
+      font-size: $font-size-base;
     }
 
     .queue-list {
       display: flex;
       flex-direction: column;
       gap: $spacing-m;
-      padding-top: $spacing-s;
 
       .queue-item {
         display: flex;
@@ -82,12 +77,12 @@
 
         &:hover {
           background-color: rgba(255, 255, 255, 0.03);
-          
+
           .item-meta .action-btn {
             color: rgba(255, 255, 255, 0.8);
           }
         }
-        
+
         &.playing {
           .item-left-group .item-info .item-title {
             color: $color-prime;
@@ -98,10 +93,11 @@
           display: flex;
           align-items: center;
           gap: $spacing-m;
-          flex: 1;
+          width: 68%;
           overflow: hidden;
 
-          .item-cover, .item-cover-placeholder {
+          .item-cover,
+          .item-cover-placeholder {
             width: 44px;
             height: 44px;
             border-radius: 4px;
@@ -118,10 +114,9 @@
             overflow: hidden;
 
             .item-title {
-              font-size: 14px;
+              font-size: $font-size-titles;
               font-weight: 500;
               color: white;
-              margin-bottom: 4px;
               white-space: nowrap;
               overflow: hidden;
               text-overflow: ellipsis;
@@ -129,7 +124,8 @@
             }
 
             .item-artist {
-              font-size: 13px;
+              font-size: $font-size-base;
+              font-weight: 500;
               color: rgba(255, 255, 255, 0.5);
               white-space: nowrap;
               overflow: hidden;
@@ -142,6 +138,7 @@
           display: flex;
           align-items: center;
           gap: $spacing-m;
+          width: 25%;
 
           .item-duration {
             font-size: 13px;
@@ -167,12 +164,5 @@
     }
   }
 
-  .placeholder-box {
-    color: $color-secondary-text;
-    background-color: rgba(255, 255, 255, 0.02);
-    border-radius: 8px;
-    padding: $spacing-l;
-    text-align: center;
-    font-size: $font-size-s;
-  }
+
 }

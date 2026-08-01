@@ -86,12 +86,18 @@ export default function TrackRow({
         </div>
       )}
 
-      {/* 6. Actions (Wide Only) */}
+      {/* 6. Source (Wide Only) */}
       {variant === 'wide' && (
-        <div className="track-action-col">
+        <div className="track-source-col">
           <button className="action-btn">
             {isCloud ? <Cloud size={18} /> : <Folder size={18} />}
           </button>
+        </div>
+      )}
+
+      {/* 7. Actions (Wide Only) */}
+      {variant === 'wide' && (
+        <div className="track-action-col">
           <button className="action-btn">
             <PlusCircle size={18} />
           </button>

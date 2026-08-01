@@ -17,9 +17,25 @@ interface QueueContextType {
   removeFromQueue: (index: number) => void;
   toggleShuffle: () => void;
   toggleRepeat: () => void;
+  enrichQueue: (library: Track[]) => void;
 }
 
 const QueueContext = createContext<QueueContextType | undefined>(undefined);
+
+const shuffleArray = (array: Track[], keepFirstItem?: Track) => {
+  let toShuffle = [...array];
+  if (keepFirstItem) {
+    toShuffle = toShuffle.filter(t => t.id !== keepFirstItem.id);
+  }
+  for (let i = toShuffle.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [toShuffle[i], toShuffle[j]] = [toShuffle[j], toShuffle[i]];
+  }
+  if (keepFirstItem) {
+    toShuffle.unshift(keepFirstItem);
+  }
+  return toShuffle;
+};
 
 export const QueueProvider = ({ children }: { children: ReactNode }) => {
   // Initialize state from localStorage if available
@@ -43,6 +59,11 @@ export const QueueProvider = ({ children }: { children: ReactNode }) => {
     return saved ? (saved as RepeatMode) : 'off';
   });
 
+  const [originalQueue, setOriginalQueue] = useState<Track[]>(() => {
+    const saved = localStorage.getItem('hertzsonic_original_queue');
+    return saved ? JSON.parse(saved) : [];
+  });
+
   // Derived state
   const currentTrack = currentIndex >= 0 && currentIndex < queue.length ? queue[currentIndex] : null;
 
@@ -60,19 +81,30 @@ export const QueueProvider = ({ children }: { children: ReactNode }) => {
       if (currentTrack) {
         localStorage.setItem('hertzsonic_last_track', JSON.stringify({ ...currentTrack, coverArt: null }));
       }
+      const origQueueToSave = originalQueue.map(t => ({ ...t, coverArt: null }));
+      localStorage.setItem('hertzsonic_original_queue', JSON.stringify(origQueueToSave));
     } catch (error) {
       console.error('Failed to save queue to localStorage:', error);
     }
-  }, [queue, currentIndex, isShuffled, repeatMode, currentTrack]);
+  }, [queue, originalQueue, currentIndex, isShuffled, repeatMode, currentTrack]);
 
   const playContext = (tracks: Track[], startIndex: number) => {
-    setQueue(tracks);
-    setCurrentIndex(startIndex >= 0 && startIndex < tracks.length ? startIndex : 0);
+    setOriginalQueue(tracks);
+    if (isShuffled) {
+      const startTrack = tracks[startIndex >= 0 && startIndex < tracks.length ? startIndex : 0];
+      const shuffled = shuffleArray(tracks, startTrack);
+      setQueue(shuffled);
+      setCurrentIndex(0);
+    } else {
+      setQueue(tracks);
+      setCurrentIndex(startIndex >= 0 && startIndex < tracks.length ? startIndex : 0);
+    }
   };
 
   const playNext = (track: Track) => {
     if (queue.length === 0) {
       setQueue([track]);
+      setOriginalQueue([track]);
       setCurrentIndex(0);
       return;
     }
@@ -80,41 +112,32 @@ export const QueueProvider = ({ children }: { children: ReactNode }) => {
     const newQueue = [...queue];
     newQueue.splice(currentIndex + 1, 0, track);
     setQueue(newQueue);
+
+    const origIdx = originalQueue.findIndex(t => t.id === currentTrack?.id);
+    const newOrig = [...originalQueue];
+    newOrig.splice(origIdx !== -1 ? origIdx + 1 : originalQueue.length, 0, track);
+    setOriginalQueue(newOrig);
   };
 
   const addToQueue = (track: Track) => {
     if (queue.length === 0) {
       setQueue([track]);
+      setOriginalQueue([track]);
       setCurrentIndex(0);
       return;
     }
     setQueue([...queue, track]);
+    setOriginalQueue([...originalQueue, track]);
   };
 
   const nextTrack = () => {
     if (queue.length === 0) return;
-    
-    if (repeatMode === 'one') {
-      // Repeat the exact same track (audio player usually handles rewinding, but we emit a state update to force re-render if needed, though strictly index doesn't change)
-      // We'll leave index identical. The PlayerBar needs to handle 'repeat one' correctly on 'ended' event.
-      // If user explicitly clicks "Next", should it go to the next track even if repeat is 'one'? Standard behavior: yes.
-      // We will allow manual Next to bypass 'repeat one'.
-    }
 
-    if (isShuffled) {
-      // Simple random index
-      const randomIndex = Math.floor(Math.random() * queue.length);
-      setCurrentIndex(randomIndex);
+    if (currentIndex < queue.length - 1) {
+      setCurrentIndex(currentIndex + 1);
     } else {
-      if (currentIndex < queue.length - 1) {
-        setCurrentIndex(currentIndex + 1);
-      } else {
-        // At the end of the queue
-        if (repeatMode === 'all') {
-          setCurrentIndex(0);
-        } else {
-          // Stop playing (or stay at last track). We'll keep it at the last track for now.
-        }
+      if (repeatMode === 'all') {
+        setCurrentIndex(0);
       }
     }
   };
@@ -122,36 +145,26 @@ export const QueueProvider = ({ children }: { children: ReactNode }) => {
   const previousTrack = () => {
     if (queue.length === 0) return;
     
-    // Standard behavior: clicking previous within the first few seconds goes to previous track, otherwise restarts current track.
-    // For context manager, we just go to the previous index. The PlayerBar can implement the 3-second threshold logic and just seek to 0 if needed.
-    
-    if (isShuffled) {
-      // If shuffled and we didn't track history, just go to a random track (or previous index normally).
-      // We'll just decrement index safely for now.
-      if (currentIndex > 0) {
-        setCurrentIndex(currentIndex - 1);
-      } else if (repeatMode === 'all') {
-        setCurrentIndex(queue.length - 1);
-      }
+    if (currentIndex > 0) {
+      setCurrentIndex(currentIndex - 1);
     } else {
-      if (currentIndex > 0) {
-        setCurrentIndex(currentIndex - 1);
+      if (repeatMode === 'all') {
+        setCurrentIndex(queue.length - 1);
       } else {
-        // At the start
-        if (repeatMode === 'all') {
-          setCurrentIndex(queue.length - 1);
-        } else {
-          setCurrentIndex(0);
-        }
+        setCurrentIndex(0);
       }
     }
   };
 
   const removeFromQueue = (index: number) => {
     if (index < 0 || index >= queue.length) return;
+    const trackToRemove = queue[index];
     
     const newQueue = [...queue];
     newQueue.splice(index, 1);
+    
+    const newOrig = originalQueue.filter(t => t.id !== trackToRemove.id);
+    setOriginalQueue(newOrig);
     
     if (newQueue.length === 0) {
       setQueue([]);
@@ -159,18 +172,37 @@ export const QueueProvider = ({ children }: { children: ReactNode }) => {
     } else {
       setQueue(newQueue);
       if (currentIndex === index) {
-        // We removed the playing track, play the next one (which falls into the same index)
         if (currentIndex >= newQueue.length) {
           setCurrentIndex(newQueue.length - 1);
         }
       } else if (currentIndex > index) {
-        // We removed a track before the current one
         setCurrentIndex(currentIndex - 1);
       }
     }
   };
 
-  const toggleShuffle = () => setIsShuffled(!isShuffled);
+  const toggleShuffle = () => {
+    setIsShuffled(prev => {
+      const newState = !prev;
+      if (newState) {
+        if (originalQueue.length === 0) {
+           setOriginalQueue(queue);
+        }
+        const current = queue[currentIndex];
+        const shuffled = shuffleArray(originalQueue.length > 0 ? originalQueue : queue, current);
+        setQueue(shuffled);
+        setCurrentIndex(0);
+      } else {
+        if (originalQueue.length > 0) {
+          setQueue(originalQueue);
+          const current = queue[currentIndex];
+          const newIdx = originalQueue.findIndex(t => t.id === current?.id);
+          setCurrentIndex(newIdx !== -1 ? newIdx : 0);
+        }
+      }
+      return newState;
+    });
+  };
 
   const toggleRepeat = () => {
     setRepeatMode(prev => {
@@ -178,6 +210,26 @@ export const QueueProvider = ({ children }: { children: ReactNode }) => {
       if (prev === 'all') return 'one';
       return 'off';
     });
+  };
+
+  const enrichQueue = (library: Track[]) => {
+    if (queue.length === 0 || library.length === 0) return;
+    
+    let changed = false;
+    const enriched = queue.map(t => {
+      if (!t.coverArt) {
+        const richTrack = library.find(rt => rt.id === t.id);
+        if (richTrack && richTrack.coverArt) {
+          changed = true;
+          return { ...t, coverArt: richTrack.coverArt };
+        }
+      }
+      return t;
+    });
+    
+    if (changed) {
+      setQueue(enriched);
+    }
   };
 
   return (
@@ -196,6 +248,7 @@ export const QueueProvider = ({ children }: { children: ReactNode }) => {
         removeFromQueue,
         toggleShuffle,
         toggleRepeat,
+        enrichQueue,
       }}
     >
       {children}

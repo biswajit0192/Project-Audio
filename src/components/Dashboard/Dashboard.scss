@@ -26,14 +26,14 @@
     overflow: hidden; // Prevent full column scroll
     display: flex;
     flex-direction: column;
-    padding: $titlebar-height $spacing-s $spacing-s $spacing-s; // Prevent content from hiding under titlebar
+    padding: $titlebar-height $spacing-xs $spacing-s $spacing-xs; // Prevent content from hiding under titlebar
   }
 
   .dashboard-right {
     grid-column: 3 / 4;
     grid-row: 1 / 2;
     overflow-y: auto; // Independently scrollable
-    padding: $titlebar-height $spacing-s $spacing-s $spacing-s; // Prevent content from hiding under titlebar
+    padding: $titlebar-height $spacing-s $spacing-s $spacing-xs; // Prevent content from hiding under titlebar
   }
 
   .dashboard-bottom {

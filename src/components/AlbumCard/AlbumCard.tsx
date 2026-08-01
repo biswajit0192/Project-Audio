@@ -1,5 +1,5 @@
 import './AlbumCard.scss';
-import { Play } from 'lucide-react';
+import iconPlayBtn from '../../assets/playing-tab-icons/Play Btn.svg';
 
 export interface AlbumCardProps {
   title: string;
@@ -10,8 +10,8 @@ export interface AlbumCardProps {
 
 export default function AlbumCard({ title, artist, coverArt, onClick }: AlbumCardProps) {
   return (
-    <div className="album-card" onClick={onClick}>
-      <div className="album-cover-container">
+    <div className="album-card">
+      <div className="album-cover-container" onClick={onClick}>
         {coverArt ? (
           <img src={coverArt} alt={`${title} cover`} className="album-cover" />
         ) : (
@@ -21,7 +21,7 @@ export default function AlbumCard({ title, artist, coverArt, onClick }: AlbumCar
         )}
         <div className="play-overlay">
           <button className="play-btn">
-            <Play fill="currentColor" size={24} />
+            <img src={iconPlayBtn} alt="Play" />
           </button>
         </div>
       </div>
