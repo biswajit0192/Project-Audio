@@ -192,6 +192,7 @@ export default function MainContent({ musicFiles, currentTrackId, searchQuery = 
                     sampleRate={track.sampleRate}
                     bitDepth={track.bitDepth}
                     bitrate={track.bitrate}
+                    filePath={track.path}
                     variant="wide"
                     isActive={track.id === currentTrackId}
                     isCloud={index % 2 === 0} // Just for demo, alternating source icons

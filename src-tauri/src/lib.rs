@@ -1,7 +1,6 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use std::path::Path;
 use serde::{Deserialize, Serialize};
-use base64::prelude::*;
 use lofty::file::{AudioFile, TaggedFileExt};
 use lofty::probe::Probe;
 use lofty::tag::Accessor;
@@ -15,6 +14,8 @@ use std::ffi::OsStr;
 use std::sync::Mutex;
 use std::sync::OnceLock;
 use tauri::Emitter;
+use std::hash::{Hash, Hasher};
+use std::collections::hash_map::DefaultHasher;
 
 static APP_HANDLE: OnceLock<tauri::AppHandle> = OnceLock::new();
 
@@ -164,7 +165,7 @@ fn seek_audio(position_secs: f64, state: tauri::State<'_, AudioState>) -> Result
 }
 
 #[tauri::command]
-fn get_track_metadata(file_path: String) -> Result<TrackMetadata, String> {
+fn get_track_metadata(app: tauri::AppHandle, file_path: String) -> Result<TrackMetadata, String> {
     let path = Path::new(&file_path);
     let tagged_file = Probe::open(path)
         .map_err(|e| e.to_string())?
@@ -192,10 +193,29 @@ fn get_track_metadata(file_path: String) -> Result<TrackMetadata, String> {
 
         let pictures = tag.pictures();
         if let Some(pic) = pictures.first() {
-            // Attempt to get the MIME type, fallback to image/jpeg
-            let mime = pic.mime_type().map(|m| m.to_string()).unwrap_or_else(|| "image/jpeg".to_string());
-            let b64 = BASE64_STANDARD.encode(pic.data());
-            cover_art = Some(format!("data:{};base64,{}", mime, b64));
+            if let Ok(app_dir) = app.path().app_local_data_dir() {
+                let covers_dir = app_dir.join("covers");
+                let _ = std::fs::create_dir_all(&covers_dir);
+                
+                let mut hasher = DefaultHasher::new();
+                file_path.hash(&mut hasher);
+                let file_hash = hasher.finish();
+                
+                let is_png = pic.mime_type().map(|m| m.to_string()) == Some("image/png".to_string());
+                let ext = if is_png { "png" } else { "jpg" };
+                let cover_file_name = format!("{}.{}", file_hash, ext);
+                let cover_path = covers_dir.join(cover_file_name);
+                
+                if !cover_path.exists() {
+                    let _ = std::fs::write(&cover_path, pic.data());
+                }
+                
+                if let Some(path_str) = cover_path.to_str() {
+                    // Windows uses backslashes, Tauri's convertFileSrc handles them correctly
+                    // We return the raw absolute path.
+                    cover_art = Some(path_str.to_string());
+                }
+            }
         }
     }
 
@@ -247,17 +267,15 @@ pub fn run() {
                     cover_art_path TEXT
                 );
                 CREATE TABLE playlists (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT UNIQUE,
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 );
                 CREATE TABLE playlist_tracks (
-                    playlist_id INTEGER,
-                    track_id INTEGER,
-                    track_order INTEGER,
-                    PRIMARY KEY (playlist_id, track_id),
-                    FOREIGN KEY (playlist_id) REFERENCES playlists(id) ON DELETE CASCADE,
-                    FOREIGN KEY (track_id) REFERENCES music_tracks(id) ON DELETE CASCADE
+                    playlist_id TEXT NOT NULL,
+                    file_path TEXT NOT NULL,
+                    added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (playlist_id, file_path)
                 );
             ",
             kind: MigrationKind::Up,
@@ -271,7 +289,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             greet, scan_for_music, get_track_metadata, play_audio, pause_audio, resume_audio, get_audio_position, seek_audio, volume::set_system_volume, volume::get_system_volume, volume::get_audio_devices, volume::switch_audio_device,
-            db::save_track_to_cache, db::get_cached_library
+            db::save_track_to_cache, db::get_cached_library,
+            db::create_playlist, db::get_playlists, db::delete_playlist, db::add_track_to_playlist, db::remove_track_from_playlist, db::get_playlist_tracks
         ])
         // --- WE INJECT THE SETUP HOOK RIGHT HERE ---
         .setup(|app| {
@@ -363,9 +382,7 @@ pub fn run() {
         .run(|_app_handle, event| match event {
             tauri::RunEvent::Exit => {
                 println!("Exiting application, freeing BASS resources...");
-                unsafe {
-                    bass_sys::BASS_Free();
-                }
+                bass_sys::BASS_Free();
             }
             _ => {}
         });

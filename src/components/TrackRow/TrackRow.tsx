@@ -1,6 +1,9 @@
 import './TrackRow.scss';
-import { Cloud, Folder, PlusCircle, Heart, MoreVertical } from 'lucide-react';
+import { Cloud, Folder, PlusCircle, Heart, MoreVertical, MinusCircle } from 'lucide-react';
 import playBtnIcon from '../../assets/playing-tab-icons/Play Btn.svg';
+import { convertFileSrc } from '@tauri-apps/api/core';
+import { usePlaylists } from '../../context/PlaylistContext';
+import { useState, useRef, useEffect } from 'react';
 
 export interface TrackRowProps {
   trackNumber?: number;
@@ -12,9 +15,11 @@ export interface TrackRowProps {
   sampleRate?: number | null;
   bitDepth?: number | null;
   bitrate?: number | null;
+  filePath?: string;
   variant?: 'compact' | 'wide';
   isActive?: boolean;
   isCloud?: boolean;
+  onRemove?: () => void;
   onClick?: () => void;
 }
 
@@ -28,11 +33,63 @@ export default function TrackRow({
   sampleRate,
   bitDepth,
   bitrate,
+  filePath,
   variant = 'wide',
   isActive = false,
   isCloud = false,
+  onRemove,
   onClick
 }: TrackRowProps) {
+  const { playlists, favoritePaths, toggleFavorite, addTrackToPlaylist, createPlaylist } = usePlaylists();
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [newPlaylistName, setNewPlaylistName] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+        setIsCreating(false);
+      }
+    };
+    if (showDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showDropdown]);
+
+  const handleFavoriteClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (filePath) {
+      await toggleFavorite(filePath);
+    }
+  };
+
+  const handleAddTrack = async (e: React.MouseEvent, playlistId: string) => {
+    e.stopPropagation();
+    if (filePath) {
+      await addTrackToPlaylist(playlistId, filePath);
+      setShowDropdown(false);
+    }
+  };
+
+  const handleCreateAndAdd = async (e: React.MouseEvent | React.FormEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!newPlaylistName.trim() || !filePath) return;
+
+    try {
+      const p = await createPlaylist(newPlaylistName.trim());
+      await addTrackToPlaylist(p.id, filePath);
+      setNewPlaylistName('');
+      setIsCreating(false);
+      setShowDropdown(false);
+    } catch (err) {
+      console.error("Failed to create playlist", err);
+    }
+  };
+
   const audioBadge = (() => {
     if ((sampleRate && sampleRate >= 88200) || (bitDepth && bitDepth > 16)) {
       return 'HR'; // Hi-Res
@@ -55,7 +112,7 @@ export default function TrackRow({
       {/* 2. Cover Art & Info Wrapper for Title column */}
       <div className="track-title-col">
         {coverArt ? (
-          <img src={coverArt} alt={`${title} art`} className="track-art" />
+          <img src={coverArt.startsWith('data:') ? coverArt : convertFileSrc(coverArt)} alt={`${title} art`} className="track-art" />
         ) : (
           <div className="track-art-placeholder">
             <span className="music-note">♪</span>
@@ -98,12 +155,58 @@ export default function TrackRow({
       {/* 7. Actions (Wide Only) */}
       {variant === 'wide' && (
         <div className="track-action-col">
-          <button className="action-btn">
-            <PlusCircle size={18} />
+          <div className="dropdown-container" ref={dropdownRef}>
+            <button className="action-btn" onClick={(e) => { e.stopPropagation(); setShowDropdown(!showDropdown); }}>
+              <PlusCircle size={18} />
+            </button>
+            {showDropdown && (
+              <div className="playlist-dropdown" onClick={(e) => e.stopPropagation()}>
+                <div className="dropdown-header">Add to Playlist</div>
+                <div className="dropdown-list">
+                  {playlists.map(p => (
+                    <div key={p.id} className="dropdown-item" onClick={(e) => handleAddTrack(e, p.id)}>
+                      {p.name}
+                    </div>
+                  ))}
+                </div>
+                <div className="dropdown-footer">
+                  {isCreating ? (
+                    <form className="new-playlist-form" onSubmit={handleCreateAndAdd}>
+                      <input 
+                        autoFocus
+                        type="text" 
+                        value={newPlaylistName} 
+                        onChange={e => setNewPlaylistName(e.target.value)} 
+                        placeholder="Playlist name..."
+                      />
+                      <button type="submit" className="save-btn">Save</button>
+                    </form>
+                  ) : (
+                    <div className="new-playlist-trigger" onClick={(e) => { e.stopPropagation(); setIsCreating(true); }}>
+                      + New Playlist
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+          <button 
+            className={`action-btn fav-btn ${filePath && favoritePaths.has(filePath) ? 'is-fav' : ''}`}
+            onClick={handleFavoriteClick}
+            title="Toggle Favorite"
+          >
+            <Heart 
+              size={18} 
+              fill={filePath && favoritePaths.has(filePath) ? 'currentColor' : 'none'} 
+            />
           </button>
-          <button className="action-btn">
-            <Heart size={18} />
-          </button>
+          
+          {onRemove && (
+            <button className="action-btn remove-btn" onClick={(e) => { e.stopPropagation(); onRemove(); }} title="Remove from playlist">
+              <MinusCircle size={18} />
+            </button>
+          )}
+
           <button className="action-btn">
             <MoreVertical size={18} />
           </button>

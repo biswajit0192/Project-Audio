@@ -1,10 +1,10 @@
-import { useState } from 'react';
 import './RightPanel.scss';
 import { useQueue } from '../../context/QueueContext';
+import { convertFileSrc } from '@tauri-apps/api/core';
 import { PlusCircle, MoreVertical } from 'lucide-react';
 
 export default function RightPanel() {
-  const { queue, currentIndex, removeFromQueue, playContext } = useQueue();
+  const { queue, currentIndex, playContext } = useQueue();
 
 
   const formatDuration = (secs: number) => {
@@ -41,7 +41,7 @@ export default function RightPanel() {
                       >
                         <div className="item-left-group">
                           {track.coverArt ? (
-                            <img src={track.coverArt} className="item-cover" alt="" />
+                            <img src={track.coverArt.startsWith('data:') ? track.coverArt : convertFileSrc(track.coverArt)} className="item-cover" alt="" />
                           ) : (
                             <div className="item-cover-placeholder" />
                           )}

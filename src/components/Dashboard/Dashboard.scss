@@ -7,11 +7,15 @@
   // Top row: 1fr (takes remaining height), Bottom row: 100px
   grid-template-rows: 1fr 100px;
 
-  // Height is exactly 100vh so it extends to the very top (under the transparent titlebar)
   height: 100vh;
   width: 100vw;
   overflow: hidden;
   background-color: darken($color-base, 2%); // slightly darker base for the layout
+  transition: grid-template-columns 0.3s ease;
+
+  &.sidebar-collapsed {
+    grid-template-columns: 80px 1fr 410px;
+  }
 
   // Grid Areas
   .dashboard-left {

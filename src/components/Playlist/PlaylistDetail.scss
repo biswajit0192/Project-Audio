@@ -1,0 +1,155 @@
+@use '../../variables' as *;
+
+.playlist-detail-view {
+  display: flex;
+  flex-direction: column;
+  padding: $spacing-xl;
+  color: $color-prime-text;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 9999px;
+  }
+
+  .playlist-header {
+    display: flex;
+    gap: $spacing-xl;
+    align-items: flex-end;
+    margin-bottom: $spacing-xl;
+
+    .playlist-collage {
+      width: 200px;
+      height: 200px;
+      flex-shrink: 0;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      background: rgba(255, 255, 255, 0.05);
+
+      &.grid-mode {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 1fr 1fr;
+
+        img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+      }
+
+      &.single-mode {
+        img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+      }
+
+      &.empty-mode {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: rgba(255, 255, 255, 0.2);
+      }
+    }
+
+    .playlist-meta {
+      flex: 1;
+
+      .playlist-type {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: $color-secondary-text;
+        margin-bottom: $spacing-s;
+      }
+
+      .playlist-title {
+        font-size: 48px;
+        font-weight: 800;
+        margin: 0 0 $spacing-m 0;
+        line-height: 1.1;
+        text-align: left;
+      }
+
+      .playlist-stats {
+        font-size: 14px;
+        color: $color-secondary-text;
+        margin-bottom: $spacing-m;
+      }
+
+      .playlist-actions {
+        display: flex;
+        gap: $spacing-m;
+        align-items: center;
+
+        .btn-play {
+          background-color: $color-prime;
+          color: #000;
+          border: none;
+          border-radius: 30px;
+          padding: 10px 24px;
+          font-weight: 700;
+          font-size: 14px;
+          cursor: pointer;
+          transition: transform 0.2s, background-color 0.2s;
+
+          &:hover {
+            transform: scale(1.05);
+            background-color: lighten($color-prime, 10%);
+          }
+        }
+
+        .btn-shuffle {
+          background-color: rgba(255, 255, 255, 0.1);
+          color: $color-prime-text;
+          border: none;
+          border-radius: 30px;
+          padding: 10px 24px;
+          font-weight: 600;
+          font-size: 14px;
+          cursor: pointer;
+          transition: background-color 0.2s;
+
+          &:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+          }
+        }
+
+        .btn-delete {
+          background: none;
+          border: none;
+          color: rgba(255, 77, 79, 0.7);
+          cursor: pointer;
+          padding: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: color 0.2s;
+
+          &:hover {
+            color: #ff4d4f;
+          }
+        }
+      }
+    }
+  }
+
+  .playlist-tracks {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+}

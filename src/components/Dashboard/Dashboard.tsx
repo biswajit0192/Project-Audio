@@ -5,6 +5,8 @@ import MainContent from './MainContent';
 import RightPanel from './RightPanel';
 import PlayerBar from './PlayerBar';
 import Settings from '../pages/Settings';
+import Library from '../pages/Library';
+import PlaylistDetail from '../Playlist/PlaylistDetail';
 import './Dashboard.scss';
 import { invoke } from '@tauri-apps/api/core';
 
@@ -17,43 +19,46 @@ interface DashboardProps {
 
 export default function Dashboard({ searchQuery }: DashboardProps) {
   const location = useLocation();
-  const { currentTrack, playContext, enrichQueue } = useQueue();
+  const { currentTrack } = useQueue();
   
   // Retrieve the scanned track objects passed from SyncPage, or initialize empty
   const [musicFiles, setMusicFiles] = useState<Track[]>(location.state?.musicFiles || []);
   
+  const loadCachedLibrary = () => {
+    invoke('get_cached_library')
+      .then((cachedTracks: any) => {
+        const mapped = cachedTracks.map((meta: any, idx: number) => ({
+          id: idx.toString(),
+          path: meta.file_path,
+          fileName: meta.file_path.split('\\').pop()?.split('/').pop() || 'Unknown',
+          title: meta.title || 'Unknown Title',
+          artist: meta.artist || 'Unknown Artist',
+          album: meta.album || 'Unknown Album',
+          durationSecs: meta.duration,
+          coverArt: meta.cover_art,
+          sampleRate: meta.sample_rate,
+          bitDepth: meta.bit_depth,
+          bitrate: meta.bitrate
+        }));
+        setMusicFiles(mapped);
+      })
+      .catch(err => console.error("Failed to load cached library:", err));
+  };
+
   useEffect(() => {
     if (!location.state?.musicFiles || location.state.musicFiles.length === 0) {
-      invoke('get_cached_library')
-        .then((cachedMetadata: any) => {
-          const tracks: Track[] = cachedMetadata.map((meta: BackendTrackMetadata) => ({
-            id: meta.file_path,
-            path: meta.file_path,
-            fileName: meta.file_path.split('\\').pop()?.split('/').pop() || 'Unknown',
-            title: meta.title || 'Unknown Title',
-            artist: meta.artist || 'Unknown Artist',
-            album: meta.album || 'Unknown Album',
-            durationSecs: meta.duration,
-            coverArt: meta.cover_art,
-            sampleRate: meta.sample_rate,
-            bitDepth: meta.bit_depth,
-            bitrate: meta.bitrate
-          }));
-          setMusicFiles(tracks);
-        })
-        .catch(console.error);
+      loadCachedLibrary();
     } else {
       setMusicFiles(location.state.musicFiles);
     }
   }, [location.state?.musicFiles]);
 
   useEffect(() => {
-    if (musicFiles.length > 0) {
-      enrichQueue(musicFiles);
-    }
-  }, [musicFiles]);
+    window.addEventListener('library-updated', loadCachedLibrary);
+    return () => window.removeEventListener('library-updated', loadCachedLibrary);
+  }, []);
 
-  const [currentView, setCurrentView] = useState<'home' | 'settings'>(
+  const [currentView, setCurrentView] = useState<string>(
     location.state?.activeView || 'home'
   );
 
@@ -64,11 +69,17 @@ export default function Dashboard({ searchQuery }: DashboardProps) {
   }, [location.state]);
 
   // Track selection is handled directly inside MainContent now
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   return (
-    <div className="dashboard-layout">
+    <div className={`dashboard-layout ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
       <div className="dashboard-left">
-        <Sidebar activeView={currentView} onNavigate={setCurrentView} />
+        <Sidebar 
+          activeView={currentView} 
+          onNavigate={setCurrentView} 
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        />
       </div>
       
       <div className="dashboard-center">
@@ -76,6 +87,16 @@ export default function Dashboard({ searchQuery }: DashboardProps) {
           <div className="dashboard-main-content">
             {currentView === 'settings' ? (
               <Settings />
+            ) : currentView === 'library' ? (
+              <Library 
+                musicFiles={musicFiles} 
+                currentTrackId={currentTrack?.id}
+              />
+            ) : currentView.startsWith('playlist_') ? (
+              <PlaylistDetail 
+                playlistId={currentView.replace('playlist_', '')} 
+                musicFiles={musicFiles} 
+              />
             ) : (
               <MainContent 
                 musicFiles={musicFiles} 

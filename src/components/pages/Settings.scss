@@ -1,13 +1,15 @@
-.settings-page {
-  padding: 40px 60px;
-  color: #fff;
-  height: 100%;
-  overflow-y: auto;
+@use '../../variables' as *;
 
-  h1 {
-    font-size: 32px;
+.settings-page {
+  color: $color-prime-text;
+  padding: $spacing-2xl $spacing-xl 0 $spacing-2xl;
+  overflow-x: hidden;
+  overscroll-behavior: none;
+
+  h1.page-title {
+    font-size: $font-size-xxl;
     font-weight: 700;
-    margin-bottom: 40px;
+    margin-bottom: $spacing-xl;
     color: #fff;
     letter-spacing: -0.5px;
   }
@@ -15,21 +17,24 @@
   .settings-list {
     display: flex;
     flex-direction: column;
-    gap: 48px;
-    padding-bottom: 100px; // space for player bar
+    gap: $spacing-2xl;
   }
 
   .settings-section {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: $spacing-m;
 
     .section-header {
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-      padding-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: $spacing-m;
+      padding-bottom: 0;
+      border-bottom: none;
 
-      h2 {
-        font-size: 20px;
+      .section-title {
+        font-size: $font-size-headings;
         font-weight: 600;
         color: #fff;
         margin: 0;
@@ -39,81 +44,14 @@
     .section-content {
       display: flex;
       flex-direction: column;
-      
-      .login-callout {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        background: rgba(229, 57, 53, 0.1);
-        padding: 20px;
-        border-radius: 8px;
-        
-        .callout-text {
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-          
-          .title {
-            font-size: 15px;
-            font-weight: 600;
-            color: #fff;
-          }
-          .desc {
-            font-size: 13px;
-            color: rgba(255, 255, 255, 0.6);
-          }
-        }
-      }
-
-      .profile-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 12px 0;
-
-        .profile-info {
-          display: flex;
-          align-items: center;
-          gap: 16px;
-
-          .avatar {
-            width: 56px;
-            height: 56px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.1);
-          }
-
-          .user-details {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-
-            .name {
-              font-size: 16px;
-              font-weight: 600;
-              color: #fff;
-            }
-
-            .email {
-              font-size: 13px;
-              color: rgba(255, 255, 255, 0.5);
-            }
-          }
-        }
-
-        .profile-actions {
-          display: flex;
-          gap: 12px;
-        }
-      }
 
       .setting-row {
         display: flex;
         justify-content: space-between;
         align-items: center;
         padding: 16px 0;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-        
+        border-bottom: 1px solid $color-dark-gray;
+
         &:last-child {
           border-bottom: none;
         }
@@ -143,7 +81,7 @@
           display: flex;
           align-items: center;
           gap: 12px;
-          
+
           &.flex-actions {
             gap: 12px;
           }
@@ -156,12 +94,12 @@
             cursor: pointer;
             transition: all 0.2s;
             border: none;
-            
+
             &:disabled {
               opacity: 0.5;
               cursor: not-allowed;
             }
-            
+
             &.loading {
               cursor: wait;
               background: rgba(255, 255, 255, 0.1) !important;
@@ -213,7 +151,7 @@
 
             &.active {
               background: #e53935; // keep brand accent
-              
+
               .knob {
                 transform: translateX(20px);
               }
@@ -239,12 +177,12 @@
             border-radius: 12px;
             font-size: 12px;
             font-weight: 500;
-            
+
             &.active {
               background: rgba(229, 57, 53, 0.15);
               color: #ff5252;
             }
-            
+
             &.inactive {
               background: transparent;
               border: 1px solid rgba(255, 255, 255, 0.2);
@@ -254,17 +192,5 @@
         }
       }
     }
-  }
-
-  // custom scrollbar
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  &::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 10px;
   }
 }

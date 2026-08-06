@@ -86,6 +86,9 @@ button {
   color: #0f0f0f;
   background-color: #ffffff;
   transition: border-color 0.25s;
+}
+
+input {
   box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
 }
 
@@ -167,7 +170,6 @@ body,
   right: 0;
   width: calc(100% - 240px);
   height: $titlebar-height;
-  padding: 0 0 0 $titlebar-padding-x;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -222,6 +224,67 @@ body,
   }
 }
 
+.titlebar-refresh-btn {
+  display: flex;
+  justify-content: left;
+  align-items: center;
+  background-color: $color-base;
+  border: none;
+  border-radius: 9999px;
+  padding: 0 15px;
+  width: $search-bar-height;
+  height: $search-bar-height;
+  margin-left: 12px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  -webkit-app-region: no-drag;
+  color: #ffffff;
+  box-shadow: none;
+  overflow: hidden;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+  }
+
+  &:active {
+    background-color: rgba(255, 255, 255, 0.12);
+  }
+
+  &.scanning,
+  &.done {
+    cursor: default;
+    width: auto;
+    padding: 0 16px;
+
+    &:hover {
+      background-color: $color-base;
+    }
+  }
+
+  .refresh-icon {
+    width: 14px;
+    height: 14px;
+    opacity: 0.8;
+
+    &.spinning {
+      animation: spin 1s linear infinite;
+    }
+  }
+
+  .refresh-text {
+    font-size: 13px;
+    font-weight: 500;
+    margin-left: 8px;
+    white-space: nowrap;
+  }
+}
+
+@keyframes spin {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
 .titlebar-brand {
   display: flex;
   align-items: center;
@@ -232,6 +295,28 @@ body,
   height: 18px;
   width: auto;
   object-fit: contain;
+}
+
+.titlebar-avatar-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+  -webkit-app-region: no-drag;
+}
+
+.titlebar-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  background-color: rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  transition: opacity 0.2s;
+
+  &:hover {
+    opacity: 0.8;
+  }
 }
 
 .titlebar-controls {
@@ -272,20 +357,19 @@ body,
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: $color-base;
-  border-radius: 10px;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: $color-prime;
-  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: darken($color-prime, 10%);
+  background: rgba(255, 255, 255, 0.2);
 }

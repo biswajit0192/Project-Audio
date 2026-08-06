@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Track } from '../types';
 
 export type RepeatMode = 'off' | 'one' | 'all';
@@ -17,7 +17,6 @@ interface QueueContextType {
   removeFromQueue: (index: number) => void;
   toggleShuffle: () => void;
   toggleRepeat: () => void;
-  enrichQueue: (library: Track[]) => void;
 }
 
 const QueueContext = createContext<QueueContextType | undefined>(undefined);
@@ -67,24 +66,30 @@ export const QueueProvider = ({ children }: { children: ReactNode }) => {
   // Derived state
   const currentTrack = currentIndex >= 0 && currentIndex < queue.length ? queue[currentIndex] : null;
 
-  // Persist state changes
   useEffect(() => {
     try {
-      // Strip coverArt (large base64 strings) before saving to prevent QuotaExceededError
-      const queueToSave = queue.map(t => ({ ...t, coverArt: null }));
+      // Safety net: never save massive base64 strings to localStorage to prevent QuotaExceededError
+      const sanitizeQueue = (q: Track[]) => q.map(t => ({
+        ...t,
+        coverArt: t.coverArt?.startsWith('data:') ? undefined : t.coverArt
+      }));
+
+      const queueToSave = sanitizeQueue(queue);
+      const originalQueueToSave = sanitizeQueue(originalQueue);
+      
       localStorage.setItem('hertzsonic_queue', JSON.stringify(queueToSave));
       localStorage.setItem('hertzsonic_queue_index', currentIndex.toString());
       localStorage.setItem('hertzsonic_is_shuffled', JSON.stringify(isShuffled));
       localStorage.setItem('hertzsonic_repeat_mode', repeatMode);
       
-      // Also keep the simple 'last_track' in sync just in case any old logic relies on it temporarily
       if (currentTrack) {
-        localStorage.setItem('hertzsonic_last_track', JSON.stringify({ ...currentTrack, coverArt: null }));
+        const trackToSave = { ...currentTrack, coverArt: currentTrack.coverArt?.startsWith('data:') ? undefined : currentTrack.coverArt };
+        localStorage.setItem('hertzsonic_last_track', JSON.stringify(trackToSave));
       }
-      const origQueueToSave = originalQueue.map(t => ({ ...t, coverArt: null }));
-      localStorage.setItem('hertzsonic_original_queue', JSON.stringify(origQueueToSave));
+      localStorage.setItem('hertzsonic_original_queue', JSON.stringify(originalQueueToSave));
     } catch (error) {
       console.error('Failed to save queue to localStorage:', error);
+      alert('Failed to save queue: ' + error);
     }
   }, [queue, originalQueue, currentIndex, isShuffled, repeatMode, currentTrack]);
 
@@ -212,26 +217,6 @@ export const QueueProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
-  const enrichQueue = (library: Track[]) => {
-    if (queue.length === 0 || library.length === 0) return;
-    
-    let changed = false;
-    const enriched = queue.map(t => {
-      if (!t.coverArt) {
-        const richTrack = library.find(rt => rt.id === t.id);
-        if (richTrack && richTrack.coverArt) {
-          changed = true;
-          return { ...t, coverArt: richTrack.coverArt };
-        }
-      }
-      return t;
-    });
-    
-    if (changed) {
-      setQueue(enriched);
-    }
-  };
-
   return (
     <QueueContext.Provider
       value={{
@@ -248,7 +233,6 @@ export const QueueProvider = ({ children }: { children: ReactNode }) => {
         removeFromQueue,
         toggleShuffle,
         toggleRepeat,
-        enrichQueue,
       }}
     >
       {children}

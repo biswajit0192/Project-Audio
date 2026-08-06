@@ -1,26 +1,66 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { open } from '@tauri-apps/plugin-dialog';
 import { useNavigate } from 'react-router-dom';
-import { invoke } from '@tauri-apps/api/core';
-import { Track, BackendTrackMetadata } from '../../types';
 import './Settings.scss';
+import { scanAndCacheFolder } from '../../utils/scanner';
+import { useAuth } from '../../context/AuthContext';
+import profileIcon from '../../assets/Profile-icon.svg';
+import { updateProfile } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+import { auth, db } from '../../lib/firebase';
+import AvatarCropModal from '../Account/AvatarCropModal';
 
 export default function Settings() {
   const [hqAudio, setHqAudio] = useState(true);
   const [autoSync, setAutoSync] = useState(false);
 
   // Account State
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [user] = useState({ name: 'Biswajit', email: 'biswajit@example.com', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Biswajit' });
+  const { isLoggedIn, user, logout, reloadUser } = useAuth();
 
   // Library State
   const [libraryPath, setLibraryPath] = useState<string | null>(localStorage.getItem('hertzsonic_library_path'));
   const [isRescanning, setIsRescanning] = useState(false);
+  const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isScanningSystem, setIsScanningSystem] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = () => {
     navigate('/auth/login', { state: { from: 'settings' } });
+  };
+
+  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.addEventListener('load', () => {
+        setImageSrc(reader.result?.toString() || null);
+      });
+      reader.readAsDataURL(file);
+    }
+    e.target.value = '';
+  };
+
+  const handleCropComplete = async (base64Avatar: string) => {
+    setImageSrc(null);
+    const currentUser = auth.currentUser;
+    if (!currentUser || !currentUser.displayName) return;
+    
+    setIsUploading(true);
+    try {
+      const currentUsername = currentUser.displayName.toLowerCase().trim();
+      
+      // Update Firestore document with merge
+      await setDoc(doc(db, "usernames", currentUsername), { photoURL: base64Avatar }, { merge: true });
+
+      await reloadUser(); // Refresh to reflect updated user profile locally without window reload
+    } catch (err: any) {
+      console.error("Failed to upload avatar", err);
+      alert(`Failed to upload avatar: ${err.message || 'Unknown error'}`);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleChangeFolder = async () => {
@@ -46,77 +86,15 @@ export default function Settings() {
     }
 
     try {
-      const rawPaths: string[] = await invoke('scan_for_music', { folderPath: path });
-      const tracks: Track[] = [];
+      await scanAndCacheFolder(path);
 
-      for (let i = 0; i < rawPaths.length; i++) {
-        const filePath = rawPaths[i];
-        const fileName = filePath.split('\\').pop()?.split('/').pop() || 'Unknown';
-        
-        try {
-          const meta: BackendTrackMetadata = await invoke('get_track_metadata', { filePath });
-          
-          try {
-            await invoke('save_track_to_cache', { track: meta });
-          } catch (dbErr) {
-            console.error('DB save error:', dbErr);
-          }
-
-          tracks.push({
-            id: i,
-            path: filePath,
-            fileName,
-            title: meta.title || fileName,
-            artist: meta.artist || 'Unknown Artist',
-            album: meta.album || 'Unknown Album',
-            durationSecs: meta.duration,
-            coverArt: meta.cover_art,
-            sampleRate: meta.sample_rate,
-            bitDepth: meta.bit_depth,
-            bitrate: meta.bitrate
-          });
-        } catch (e) {
-          console.error(`Failed to read metadata for ${filePath}:`, e);
-          const fallbackMeta: BackendTrackMetadata = {
-            file_path: filePath,
-            title: fileName,
-            artist: null,
-            album: null,
-            duration: 0,
-            cover_art: null,
-            sample_rate: null,
-            bit_depth: null,
-            bitrate: null
-          };
-          
-          try {
-            await invoke('save_track_to_cache', { track: fallbackMeta });
-          } catch (dbErr) {
-            console.error('DB save error:', dbErr);
-          }
-
-          tracks.push({
-            id: i,
-            path: filePath,
-            fileName,
-            title: fileName,
-            artist: 'Unknown Artist',
-            album: 'Unknown Album',
-            durationSecs: 0,
-            coverArt: null,
-            sampleRate: null,
-            bitDepth: null,
-            bitrate: null
-          });
-        }
-      }
-      
       // Stop loading spinners
       if (isSystemScan) setIsScanningSystem(false);
       else setIsRescanning(false);
 
-      // Navigate to dashboard with the scanned track objects to update the library, using replace to avoid pushing history
-      navigate('/dashboard', { state: { musicFiles: tracks }, replace: true });
+      // Notify the dashboard to silently fetch the fresh database
+      window.dispatchEvent(new CustomEvent('library-updated'));
+      navigate('/dashboard', { replace: true });
     } catch (error) {
       console.error('Error scanning folder:', error);
       if (isSystemScan) setIsScanningSystem(false);
@@ -146,48 +124,83 @@ export default function Settings() {
     }
   };
 
+  const handleHardReload = () => {
+    window.location.reload();
+  };
+
   return (
     <div className="settings-page">
-      <h1>Settings</h1>
-      
+
       <div className="settings-list">
-        
+
         {/* Account & Profile */}
         <div className="settings-section">
           <div className="section-header">
-            <h2>Account</h2>
+            <h2 className="section-title">Account</h2>
           </div>
           <div className="section-content">
-            {!isLoggedIn ? (
-              <div className="login-callout">
-                <div className="callout-text">
+            {!isLoggedIn || !user ? (
+              <div className="setting-row">
+                <div className="setting-label">
                   <span className="title">Sign in to sync your data</span>
                   <span className="desc">Access your playlists and preferences across all your devices.</span>
                 </div>
-                <button className="primary-btn" onClick={handleLogin}>Log In / Register</button>
+                <div className="setting-action">
+                  <button className="secondary-btn" onClick={handleLogin}>Log In / Register</button>
+                </div>
               </div>
             ) : (
-              <div className="profile-row">
-                <div className="profile-info">
-                  <img src={user.avatar} alt="Avatar" className="avatar" />
-                  <div className="user-details">
-                    <span className="name">{user.name}</span>
-                    <span className="email">{user.email}</span>
+              <div className="setting-row">
+                <div className="setting-label" style={{ flexDirection: 'row', alignItems: 'center', gap: '16px' }}>
+                  <div 
+                    className="avatar-wrapper"
+                    onClick={() => !isUploading && fileInputRef.current?.click()}
+                    style={{ position: 'relative', cursor: 'pointer' }}
+                    title="Change Avatar"
+                  >
+                    <img 
+                      src={user.avatar || profileIcon} 
+                      alt="Avatar" 
+                      className="avatar" 
+                      style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', objectFit: 'cover', opacity: isUploading ? 0.5 : 1 }} 
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = profileIcon;
+                      }}
+                    />
+                    {isUploading && (
+                      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                         <span style={{ fontSize: '10px' }}>...</span>
+                      </div>
+                    )}
+                  </div>
+                  <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={onFileChange} />
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span className="title">{user.name}</span>
+                    <span className="desc">{user.email}</span>
                   </div>
                 </div>
-                <div className="profile-actions">
-                  <button className="secondary-btn">Manage Account</button>
-                  <button className="danger-btn" onClick={() => setIsLoggedIn(false)}>Sign Out</button>
+                <div className="setting-action">
+                  <button className="secondary-btn" onClick={() => window.dispatchEvent(new CustomEvent('open-manage-account'))}>Manage Account</button>
+                  <button className="danger-btn" onClick={() => logout()}>Sign Out</button>
                 </div>
               </div>
             )}
           </div>
         </div>
 
+        {imageSrc && (
+          <AvatarCropModal
+            imageSrc={imageSrc}
+            onCropComplete={handleCropComplete}
+            onCancel={() => setImageSrc(null)}
+          />
+        )}
+
         {/* Music Library & Storage */}
         <div className="settings-section">
           <div className="section-header">
-            <h2>Music Library</h2>
+            <h2 className="section-title">Music Library</h2>
           </div>
           <div className="section-content">
             <div className="setting-row">
@@ -201,26 +214,40 @@ export default function Settings() {
                 <button className="secondary-btn" onClick={handleChangeFolder}>Change Folder</button>
               </div>
             </div>
-            
+
             <div className="setting-row">
               <div className="setting-label">
                 <span className="title">Library Sync</span>
                 <span className="desc">Scan folders for new audio files</span>
               </div>
               <div className="setting-action flex-actions">
-                <button 
-                  className={`secondary-btn ${isRescanning ? 'loading' : ''}`} 
+                <button
+                  className={`secondary-btn ${isRescanning ? 'loading' : ''}`}
                   onClick={handleRescan}
                   disabled={isRescanning || isScanningSystem || !libraryPath}
                 >
                   {isRescanning ? 'Scanning...' : 'Rescan Library'}
                 </button>
-                <button 
-                  className={`secondary-btn ${isScanningSystem ? 'loading' : ''}`} 
+                <button
+                  className={`secondary-btn ${isScanningSystem ? 'loading' : ''}`}
                   onClick={handleScanSystem}
                   disabled={isScanningSystem || isRescanning}
                 >
                   {isScanningSystem ? 'Scanning...' : 'Scan Whole System'}
+                </button>
+              </div>
+            </div>
+            <div className="setting-row">
+              <div className="setting-label">
+                <span className="title">App Reload</span>
+                <span className="desc">Perform a full hard-reload of the UI</span>
+              </div>
+              <div className="setting-action">
+                <button
+                  className="secondary-btn"
+                  onClick={handleHardReload}
+                >
+                  Hard Reload UI
                 </button>
               </div>
             </div>
@@ -230,7 +257,7 @@ export default function Settings() {
         {/* Cloud & External Storage */}
         <div className="settings-section">
           <div className="section-header">
-            <h2>Cloud Storage</h2>
+            <h2 className="section-title">Cloud Storage</h2>
           </div>
           <div className="section-content">
             <div className="setting-row">
@@ -249,8 +276,8 @@ export default function Settings() {
                 <span className="desc">Sync local files with cloud storage</span>
               </div>
               <div className="setting-action">
-                <div 
-                  className={`toggle ${autoSync ? 'active' : ''}`} 
+                <div
+                  className={`toggle ${autoSync ? 'active' : ''}`}
                   onClick={() => setAutoSync(!autoSync)}
                 >
                   <div className="knob"></div>
@@ -263,7 +290,7 @@ export default function Settings() {
         {/* Audio Engine Preferences */}
         <div className="settings-section">
           <div className="section-header">
-            <h2>Audio Engine</h2>
+            <h2 className="section-title">Audio Engine</h2>
           </div>
           <div className="section-content">
             <div className="setting-row">
@@ -272,8 +299,8 @@ export default function Settings() {
                 <span className="desc">Bypass OS mixer for bit-perfect audio</span>
               </div>
               <div className="setting-action">
-                <div 
-                  className={`toggle ${hqAudio ? 'active' : ''}`} 
+                <div
+                  className={`toggle ${hqAudio ? 'active' : ''}`}
                   onClick={() => setHqAudio(!hqAudio)}
                 >
                   <div className="knob"></div>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import './PlayerBar.scss';
 import { Heart } from 'lucide-react';
@@ -374,7 +374,7 @@ export default function PlayerBar() {
             <div className="track-art">
               {currentTrack.coverArt && (
                 <img
-                  src={currentTrack.coverArt}
+                  src={currentTrack.coverArt.startsWith('data:') ? currentTrack.coverArt : convertFileSrc(currentTrack.coverArt)}
                   alt="Cover Art"
                   style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }}
                 />

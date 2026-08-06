@@ -15,12 +15,11 @@
 
     .track-number-col {
       .number {
-        display: none;
+        opacity: 0;
       }
 
       .play-icon {
-        display: block !important;
-        color: $color-prime-text;
+        opacity: 0.8 !important;
       }
     }
   }
@@ -119,21 +118,30 @@
     justify-content: space-between;
 
     .track-number-col {
-      width: 32px;
+      width: 26px;
+      height: 24px;
+      position: relative;
       text-align: right;
       color: $color-secondary-text;
       font-size: $font-size-base;
       font-variant-numeric: tabular-nums;
       display: flex;
-      justify-content: flex-end;
+      justify-content: center;
       align-items: center;
 
+      .number {
+        line-height: 1;
+        transition: opacity 0.2s;
+      }
+
       .play-icon {
-        display: none;
+        position: absolute;
+        opacity: 0;
         width: 24px;
         height: 24px;
-        opacity: 0.8;
         object-fit: contain;
+        transition: opacity 0.2s;
+        pointer-events: none;
       }
     }
 
@@ -193,6 +201,105 @@
       gap: $spacing-s;
       width: 12%;
 
+      .dropdown-container {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        .playlist-dropdown {
+          position: absolute;
+          top: 100%;
+          right: 0;
+          margin-top: 8px;
+          background: rgba(15, 15, 20, 0.95);
+          backdrop-filter: blur(16px);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 8px;
+          min-width: 200px;
+          z-index: 100;
+          display: flex;
+          flex-direction: column;
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+          overflow: hidden;
+
+          .dropdown-header {
+            padding: 12px 16px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: $color-secondary-text;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+          }
+
+          .dropdown-list {
+            max-height: 200px;
+            overflow-y: auto;
+
+            .dropdown-item {
+              padding: 12px 16px;
+              font-size: 13px;
+              color: $color-prime-text;
+              cursor: pointer;
+              transition: background 0.2s;
+
+              &:hover {
+                background: rgba(255, 255, 255, 0.1);
+              }
+            }
+          }
+
+          .dropdown-footer {
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+
+            .new-playlist-trigger {
+              padding: 12px 16px;
+              font-size: 13px;
+              color: $color-prime;
+              cursor: pointer;
+              transition: background 0.2s;
+
+              &:hover {
+                background: rgba($color-prime, 0.1);
+              }
+            }
+
+            .new-playlist-form {
+              display: flex;
+              align-items: center;
+              padding: 8px;
+
+              input {
+                flex: 1;
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                color: $color-prime-text;
+                border-radius: 4px;
+                padding: 6px 10px;
+                font-size: 12px;
+                outline: none;
+
+                &:focus {
+                  border-color: $color-prime;
+                }
+              }
+
+              .save-btn {
+                background: $color-prime;
+                color: #000;
+                border: none;
+                border-radius: 4px;
+                padding: 6px 10px;
+                margin-left: 8px;
+                font-size: 12px;
+                font-weight: 600;
+                cursor: pointer;
+              }
+            }
+          }
+        }
+      }
+
       .action-btn {
         background: none;
         border: none;
@@ -202,10 +309,22 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: color 0.2s;
+        transition: color 0.2s, transform 0.2s;
 
         &:hover {
           color: $color-prime-text;
+        }
+
+        &.fav-btn.is-fav {
+          color: $color-prime;
+          
+          svg {
+            fill: $color-prime;
+          }
+        }
+
+        &.remove-btn:hover {
+          color: #ff4d4f;
         }
       }
     }

@@ -10,36 +10,18 @@
 }
 
 .dashboard-main-content {
-  padding: $spacing-2xl $spacing-2xl 0 $spacing-xl; // Remove bottom padding so scrollbar reaches the end
+  padding: 0; // Padding moved to children so scrollbar is at the extreme edge
   color: $color-prime-text;
   display: flex;
   flex-direction: column;
   height: 100%;
   overflow-y: auto;
   overflow-x: hidden;
-  overscroll-behavior-y: none; // Prevent vertical scroll bounce (rubber-banding)
-
-
-  // Custom thin scrollbar for a sleeker look
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 10px;
-  }
-
-  &::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.2);
-  }
+  overscroll-behavior: none; // Prevent scroll bounce on both axes
 }
 
 .home-content {
+  padding: $spacing-2xl $spacing-xl 0 $spacing-2xl;
   display: flex;
   flex-direction: column;
   overflow: visible;
@@ -187,7 +169,7 @@
     letter-spacing: 1px;
 
     .col-num {
-      width: 32px;
+      width: 26px;
       text-align: right;
     }
 

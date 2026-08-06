@@ -33,6 +33,26 @@
       height: 26px;
       width: auto;
       object-fit: contain;
+      transition: opacity 0.2s, width 0.2s;
+    }
+
+    .collapse-btn {
+      background: none;
+      border: none;
+      color: rgba(255, 255, 255, 0.4);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px;
+      border-radius: 4px;
+      transition: color 0.2s ease, background-color 0.2s ease;
+      margin-left: auto;
+
+      &:hover {
+        color: white;
+        background-color: rgba(255, 255, 255, 0.1);
+      }
     }
   }
 
@@ -41,6 +61,7 @@
     display: flex;
     flex-direction: column;
     padding: 0 $spacing-xl;
+    transition: padding 0.3s ease;
   }
 
   .sidebar-divider {
@@ -84,13 +105,36 @@
     .nav-item {
       display: flex;
       align-items: center;
-      gap: 14px;
+      justify-content: space-between;
       padding: 10px 0;
       cursor: pointer;
       border-radius: 6px;
       font-size: $font-size-base;
       font-weight: 500;
       position: relative;
+
+      .nav-item-content {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        flex: 1;
+        min-width: 0;
+
+        span {
+          transition: all 0.2s ease;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+      }
+
+      .nav-badge {
+        font-size: 11px;
+        color: $color-secondary-text;
+        padding: 2px 8px;
+        border-radius: 12px;
+        margin-left: 8px;
+      }
 
       .nav-icon {
         width: 18px;
@@ -108,8 +152,7 @@
       }
 
       &:hover {
-
-        span {
+        .nav-item-content span {
           transform: translateX(4px);
         }
       }
@@ -143,7 +186,7 @@
         }
 
         &:hover {
-          span {
+          .nav-item-content span {
             transform: none;
           }
         }
@@ -153,5 +196,64 @@
 
   .settings-section {
     margin-top: auto; // Pushes settings to the very bottom if there's space
+  }
+
+  // COLLAPSED STATE OVERRIDES
+  &.collapsed {
+    .sidebar-header {
+      padding: 0;
+      justify-content: center;
+      position: relative;
+      cursor: pointer;
+
+      .sidebar-logo {
+        display: block;
+        height: 26px;
+        width: auto;
+        transition: opacity 0.2s ease;
+      }
+
+      .collapse-btn {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        margin: 0;
+        opacity: 0;
+        pointer-events: none; // Disable clicks when hidden
+        background-color: transparent;
+      }
+
+      &:hover {
+        .sidebar-logo {
+          opacity: 0;
+        }
+
+        .collapse-btn {
+          opacity: 1;
+          pointer-events: auto;
+        }
+      }
+    }
+
+    .sidebar-content {
+      padding: 0 $spacing-s;
+    }
+
+    .nav-list {
+      .nav-item {
+        justify-content: center;
+        padding: 14px 0; // larger hit area since it's just an icon
+
+        span,
+        .nav-badge {
+          display: none;
+        }
+
+        &.active::before {
+          left: -8px; // Move indicator closer since padding changed
+        }
+      }
+    }
   }
 }

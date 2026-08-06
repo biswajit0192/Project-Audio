@@ -1,5 +1,6 @@
 import './AlbumCard.scss';
 import iconPlayBtn from '../../assets/playing-tab-icons/Play Btn.svg';
+import { convertFileSrc } from '@tauri-apps/api/core';
 
 export interface AlbumCardProps {
   title: string;
@@ -13,7 +14,7 @@ export default function AlbumCard({ title, artist, coverArt, onClick }: AlbumCar
     <div className="album-card">
       <div className="album-cover-container" onClick={onClick}>
         {coverArt ? (
-          <img src={coverArt} alt={`${title} cover`} className="album-cover" />
+          <img src={coverArt.startsWith('data:') ? coverArt : convertFileSrc(coverArt)} alt={`${title} cover`} className="album-cover" />
         ) : (
           <div className="album-placeholder">
             <span className="music-note">♪</span>
