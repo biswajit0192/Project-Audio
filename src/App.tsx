@@ -8,11 +8,9 @@ import CreateAccount from './components/Auth/CreateAccount/CreateAccount';
 import ForgotPassword from './components/Auth/ForgotPassword/ForgotPassword';
 import SyncPage from './components/Sync/SyncPage';
 import Dashboard from './components/Dashboard/Dashboard';
-import Sidebar from './components/Dashboard/Sidebar';
-import Playbar from './components/Player/Playbar';
-import searchIcon from './assets/search-icon.svg';
-import refreshIcon from './assets/Refresh Icon.svg';
-import profileIcon from './assets/Profile-icon.svg';
+import SearchIcon from './assets/search-icon.svg?react';
+import RefreshIcon from './assets/Refresh Icon.svg?react';
+import ProfileIcon from './assets/Profile-icon.svg?react';
 import { scanAndCacheFolder } from './utils/scanner';
 import { useAuth } from './context/AuthContext';
 import ManageAccount from './components/Account/ManageAccount';
@@ -98,7 +96,7 @@ export default function App() {
       >
         {isDashboard && (
           <div className="titlebar-search-container">
-            <img src={searchIcon} alt="Search" className="titlebar-search-icon" />
+            <SearchIcon className="titlebar-search-icon" />
             <input 
               type="text" 
               className="titlebar-search-input" 
@@ -116,7 +114,7 @@ export default function App() {
             title="Rescan Library"
             disabled={syncStatus === 'scanning'}
           >
-            <img src={refreshIcon} alt="Refresh" className={`refresh-icon ${syncStatus === 'scanning' ? 'spinning' : ''}`} />
+            <RefreshIcon className={`refresh-icon ${syncStatus === 'scanning' ? 'spinning' : ''}`} />
             {syncStatus === 'scanning' && <span className="refresh-text">Scanning...</span>}
             {syncStatus === 'done' && <span className="refresh-text">Done!</span>}
           </button>
@@ -131,14 +129,15 @@ export default function App() {
             style={{ cursor: 'pointer' }} 
             title="Manage Account"
           >
-            <img 
-              src={user.avatar || profileIcon} 
-              alt={user.name} 
-              className="titlebar-avatar" 
-              onError={(e) => {
-                (e.target as HTMLImageElement).src = profileIcon;
-              }}
-            />
+            {user.avatar ? (
+              <img 
+                src={user.avatar} 
+                alt={user.name} 
+                className="titlebar-avatar" 
+              />
+            ) : (
+              <ProfileIcon className="titlebar-avatar" />
+            )}
           </div>
         )}
 

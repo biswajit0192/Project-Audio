@@ -5,6 +5,7 @@ export interface Playlist {
   id: string;
   name: string;
   created_at: string;
+  cover_art?: string | null;
 }
 
 interface PlaylistContextType {
@@ -16,6 +17,7 @@ interface PlaylistContextType {
   deletePlaylist: (id: string) => Promise<void>;
   addTrackToPlaylist: (playlistId: string, filePath: string) => Promise<void>;
   removeTrackFromPlaylist: (playlistId: string, filePath: string) => Promise<void>;
+  updatePlaylistCover: (playlistId: string, base64Image: string | null) => Promise<void>;
   refreshPlaylists: () => Promise<void>;
 }
 
@@ -73,6 +75,8 @@ export const PlaylistProvider: React.FC<{ children: React.ReactNode }> = ({ chil
          favPlaylist = await invoke('create_playlist', { name: 'Favorites' });
       }
 
+      if (!favPlaylist) return;
+
       if (favoritePaths.has(filePath)) {
         await invoke('remove_track_from_playlist', { playlistId: favPlaylist.id, filePath });
         setFavoritePaths(prev => {
@@ -114,6 +118,11 @@ export const PlaylistProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     await refreshPlaylists();
   };
 
+  const updatePlaylistCover = async (playlistId: string, base64Image: string | null) => {
+    await invoke('update_playlist_cover', { playlistId, coverArt: base64Image });
+    await refreshPlaylists();
+  };
+
   return (
     <PlaylistContext.Provider
       value={{
@@ -125,6 +134,7 @@ export const PlaylistProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         deletePlaylist,
         addTrackToPlaylist,
         removeTrackFromPlaylist,
+        updatePlaylistCover,
         refreshPlaylists
       }}
     >

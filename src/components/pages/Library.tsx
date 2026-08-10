@@ -1,20 +1,21 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Track } from '../../types';
 import { useQueue } from '../../context/QueueContext';
 import AlbumCard from '../AlbumCard/AlbumCard';
 import TrackRow from '../TrackRow/TrackRow';
-import iconPlayBtn from '../../assets/playing-tab-icons/Play Btn.svg';
-import iconShuffle from '../../assets/playing-tab-icons/Suffle Songs.svg';
-import iconShuffleActive from '../../assets/playing-tab-icons/Suffle Songs Active.svg';
-import iconFolderClosed from '../../assets/folder-closed.svg';
-import iconFolderOpen from '../../assets/folder-open.svg';
-import iconMusicFile from '../../assets/music-file.svg';
+import IconPlayBtn from '../../assets/playing-tab-icons/Play Btn.svg?react';
+import IconShuffle from '../../assets/playing-tab-icons/Suffle Songs.svg?react';
+import IconShuffleActive from '../../assets/playing-tab-icons/Suffle Songs Active.svg?react';
+import IconFolderClosed from '../../assets/folder-closed.svg?react';
+import IconFolderOpen from '../../assets/folder-open.svg?react';
+import IconMusicFile from '../../assets/music-file.svg?react';
 import './Library.scss';
 import { convertFileSrc } from '@tauri-apps/api/core';
 
 interface LibraryProps {
   musicFiles: Track[];
   currentTrackId?: string | number;
+  initialFilter?: { tab: string; filter?: string } | null;
 }
 
 type TabType = 'albums' | 'artists' | 'tracks' | 'genres' | 'hires' | 'folderview';
@@ -44,7 +45,7 @@ const FolderTreeComponent = ({ node, level = 0, onPlayTrack }: { node: DirNode, 
     <div className="folder-node" style={{ paddingLeft: level > 0 ? 20 : 0 }}>
       {level > 0 && (
         <div className="folder-header" onClick={() => setExpanded(!expanded)}>
-          <img src={expanded ? iconFolderOpen : iconFolderClosed} className="folder-icon" alt="folder" style={{ width: 16, height: 16 }} />
+          {expanded ? <IconFolderOpen className="folder-icon" style={{ width: 16, height: 16 }} /> : <IconFolderClosed className="folder-icon" style={{ width: 16, height: 16 }} />}
           <span className="folder-name">{node.name}</span>
         </div>
       )}
@@ -57,7 +58,7 @@ const FolderTreeComponent = ({ node, level = 0, onPlayTrack }: { node: DirNode, 
             const file = child as FileNode;
             return (
               <div key={file.name} className="folder-file" onClick={() => onPlayTrack(file.track, file.originalIndex)}>
-                <img src={iconMusicFile} className="file-icon" alt="music" style={{ width: 14, height: 14 }} />
+                <IconMusicFile className="file-icon" style={{ width: 14, height: 14 }} />
                 <span className="file-name">{file.name}</span>
                 <span className="file-meta">{file.track.artist !== 'Unknown Artist' ? file.track.artist : ''}</span>
               </div>
@@ -69,9 +70,31 @@ const FolderTreeComponent = ({ node, level = 0, onPlayTrack }: { node: DirNode, 
   );
 };
 
-export default function Library({ musicFiles, currentTrackId }: LibraryProps) {
+export default function Library({ musicFiles, currentTrackId, initialFilter }: LibraryProps) {
   const [activeTab, setActiveTab] = useState<TabType>('albums');
   const [selectedArtist, setSelectedArtist] = useState<string | null>(null);
+  const [selectedAlbum, setSelectedAlbum] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialFilter) {
+      if (initialFilter.filter) {
+        // It's a filtering navigation (e.g. click on an album to see its tracks)
+        setActiveTab('tracks');
+        if (initialFilter.tab === 'artists') {
+          setSelectedArtist(initialFilter.filter);
+          setSelectedAlbum(null);
+        } else if (initialFilter.tab === 'albums') {
+          setSelectedAlbum(initialFilter.filter);
+          setSelectedArtist(null);
+        }
+      } else {
+        // Just navigate to the tab (e.g. View All albums)
+        setActiveTab(initialFilter.tab as TabType);
+        setSelectedArtist(null);
+        setSelectedAlbum(null);
+      }
+    }
+  }, [initialFilter]);
   
   const { playContext, isShuffled, toggleShuffle } = useQueue();
 
@@ -86,47 +109,58 @@ export default function Library({ musicFiles, currentTrackId }: LibraryProps) {
 
   // Derive unique lists
   const { albums, artists, totalDurationStr } = useMemo(() => {
-    const albumSet = new Set<string>();
-    const artistSet = new Set<string>();
-    const albumList: { title: string; artist: string; coverArt?: string }[] = [];
-    const artistList: { name: string; coverArt?: string }[] = [];
+    const albumMap = new Map<string, { title: string; artist: string; coverArt?: string }>();
+    const artistMap = new Map<string, { name: string; coverArt?: string }>();
     let totalSecs = 0;
 
     musicFiles.forEach(t => {
       totalSecs += t.durationSecs;
       
       const aTitle = t.album && t.album !== 'Unknown Album' ? t.album : 'Unknown Album';
-      if (!albumSet.has(aTitle)) {
-        albumSet.add(aTitle);
-        albumList.push({ title: aTitle, artist: t.artist, coverArt: t.coverArt });
+      if (!albumMap.has(aTitle)) {
+        albumMap.set(aTitle, { title: aTitle, artist: t.artist, coverArt: t.coverArt ?? undefined });
+      } else if (t.coverArt) {
+        const existing = albumMap.get(aTitle)!;
+        if (!existing.coverArt) existing.coverArt = t.coverArt;
       }
 
       const aName = t.artist && t.artist !== 'Unknown Artist' ? t.artist : 'Unknown Artist';
-      if (!artistSet.has(aName)) {
-        artistSet.add(aName);
-        artistList.push({ name: aName, coverArt: t.coverArt }); // Store first coverart as artist avatar
+      if (!artistMap.has(aName)) {
+        artistMap.set(aName, { name: aName, coverArt: t.coverArt ?? undefined });
+      } else if (t.coverArt) {
+        const existing = artistMap.get(aName)!;
+        if (!existing.coverArt) existing.coverArt = t.coverArt;
       }
     });
+
+    const albumList = Array.from(albumMap.values());
+    const artistList = Array.from(artistMap.values());
 
     const hours = Math.floor(totalSecs / 3600);
     const mins = Math.floor((totalSecs % 3600) / 60);
     const secs = Math.floor(totalSecs % 60);
     const durStr = hours > 0 ? `${hours}h ${mins}m` : `${mins}m ${secs}s`;
 
-    return { albums: albumList, artists: artistList, totalDurationStr: durStr };
+    return { 
+      albums: albumList.sort((a, b) => a.title.localeCompare(b.title)), 
+      artists: artistList.sort((a, b) => a.name.localeCompare(b.name)), 
+      totalDurationStr: durStr 
+    };
   }, [musicFiles]);
 
   const displayedTracks = useMemo(() => {
+    let result = musicFiles;
     if (activeTab === 'tracks') {
-      if (selectedArtist) return musicFiles.filter(t => t.artist === selectedArtist);
-      return musicFiles;
-    }
-    if (activeTab === 'hires') {
+      if (selectedArtist) result = musicFiles.filter(t => t.artist === selectedArtist);
+      else if (selectedAlbum) result = musicFiles.filter(t => t.album === selectedAlbum);
+    } else if (activeTab === 'hires') {
       // Show ONLY 'HR' tagged tracks based on TrackRow.tsx logic (sampleRate >= 88.2kHz OR bitDepth > 16)
-      return musicFiles.filter(t => (t.sampleRate && t.sampleRate >= 88200) || (t.bitDepth && t.bitDepth > 16));
+      result = musicFiles.filter(t => (t.sampleRate && t.sampleRate >= 88200) || (t.bitDepth && t.bitDepth > 16));
     }
-    return musicFiles;
-  }, [musicFiles, activeTab, selectedArtist]);
+    
+    // Sort all tracks alphabetically by title
+    return [...result].sort((a, b) => a.title.localeCompare(b.title));
+  }, [musicFiles, activeTab, selectedArtist, selectedAlbum]);
 
   const folderTree = useMemo(() => {
     const root: DirNode = { name: 'root', type: 'dir', children: {} };
@@ -166,6 +200,7 @@ export default function Library({ musicFiles, currentTrackId }: LibraryProps) {
     setActiveTab(tab);
     if (tab !== 'tracks') {
       setSelectedArtist(null);
+      setSelectedAlbum(null);
     }
   };
 
@@ -175,7 +210,13 @@ export default function Library({ musicFiles, currentTrackId }: LibraryProps) {
   };
 
   const handlePlayAll = () => {
-    if (activeTab === 'albums' || activeTab === 'artists' || activeTab === 'folderview' || activeTab === 'genres') {
+    if (activeTab === 'albums') {
+      const sorted = [...musicFiles].sort((a, b) => (a.album || '').localeCompare(b.album || ''));
+      playContext(sorted, 0);
+    } else if (activeTab === 'artists') {
+      const sorted = [...musicFiles].sort((a, b) => (a.artist || '').localeCompare(b.artist || ''));
+      playContext(sorted, 0);
+    } else if (activeTab === 'folderview' || activeTab === 'genres') {
       playContext(musicFiles, 0);
     } else {
       if (displayedTracks.length > 0) {
@@ -220,8 +261,15 @@ export default function Library({ musicFiles, currentTrackId }: LibraryProps) {
                     <div className="artist-placeholder">♪</div>
                   )}
                   <div className="play-overlay">
-                    <button className="play-btn">
-                      <img src={iconPlayBtn} alt="Play" />
+                    <button 
+                      className="play-btn" 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const artistTracks = musicFiles.filter(t => t.artist === artist.name);
+                        if (artistTracks.length > 0) playContext(artistTracks, 0);
+                      }}
+                    >
+                      <IconPlayBtn />
                     </button>
                   </div>
                 </div>
@@ -263,7 +311,7 @@ export default function Library({ musicFiles, currentTrackId }: LibraryProps) {
                     filePath={track.path}
                     variant="wide"
                     isActive={track.id === currentTrackId}
-                    isCloud={index % 2 === 0} // visual variety
+                    isCloud={track.path.startsWith('http')}
                     onClick={() => playContext(displayedTracks, index)}
                   />
                 );
@@ -280,7 +328,7 @@ export default function Library({ musicFiles, currentTrackId }: LibraryProps) {
           <div className="folder-view-container">
             <FolderTreeComponent 
               node={folderTree} 
-              onPlayTrack={(track, idx) => playContext(musicFiles, idx)} 
+              onPlayTrack={(_track, idx) => playContext(musicFiles, idx)} 
             />
           </div>
         );
@@ -309,15 +357,15 @@ export default function Library({ musicFiles, currentTrackId }: LibraryProps) {
       <div className="library-action-bar">
         <div className="left-actions">
           <button className="icon-btn play-all-btn" onClick={handlePlayAll}>
-            <img src={iconPlayBtn} alt="Play" style={{ width: 36, height: 36 }} />
+            <IconPlayBtn style={{ width: 36, height: 36 }} />
           </button>
           <button className={`icon-btn shuffle-btn ${isShuffled ? 'active' : ''}`} onClick={toggleShuffle}>
-            <img src={isShuffled ? iconShuffleActive : iconShuffle} alt="Shuffle" style={{ width: 20, height: 20 }} />
+            {isShuffled ? <IconShuffleActive style={{ width: 20, height: 20 }} /> : <IconShuffle style={{ width: 20, height: 20 }} />}
           </button>
-          {selectedArtist && activeTab === 'tracks' && (
+          {(selectedArtist || selectedAlbum) && activeTab === 'tracks' && (
             <span className="filter-badge">
-              {selectedArtist}
-              <button className="clear-filter" onClick={(e) => { e.stopPropagation(); setSelectedArtist(null); }}>×</button>
+              {selectedArtist || selectedAlbum}
+              <button className="clear-filter" onClick={(e) => { e.stopPropagation(); setSelectedArtist(null); setSelectedAlbum(null); }}>×</button>
             </span>
           )}
         </div>

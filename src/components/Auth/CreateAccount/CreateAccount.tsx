@@ -4,7 +4,7 @@ import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../../../lib/firebase';
 import '../Auth.scss';
-import logoMain from '../../../assets/logo-main.svg';
+import LogoMain from '../../../assets/logo-main.svg?react';
 
 export default function CreateAccount() {
   const navigate = useNavigate();
@@ -62,7 +62,7 @@ export default function CreateAccount() {
   return (
     <div className="auth-container">
       <div className="logo-layout" style={{ marginBottom: '2rem' }}>
-        <img src={logoMain} alt="HertzSonic Logo" className="brand-logo" />
+        <LogoMain className="brand-logo" />
       </div>
       <h2 className="auth-title">Create Account</h2>
       {error && <div className="auth-error" style={{ color: 'red', marginBottom: '1rem', fontSize: '14px' }}>{error}</div>}

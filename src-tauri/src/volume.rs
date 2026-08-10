@@ -377,6 +377,48 @@ pub fn get_audio_devices(state: tauri::State<'_, VolumeState>) -> Result<Vec<Aud
     Ok(devices)
 }
 
+#[derive(serde::Serialize)]
+pub struct AudioDeviceInfo {
+    pub hardware_name: String,
+    pub nickname: Option<String>,
+}
+
+#[tauri::command]
+pub fn get_current_audio_device(state: tauri::State<'_, VolumeState>, app: tauri::AppHandle) -> Result<Option<AudioDeviceInfo>, String> {
+    if let Ok(devices) = get_audio_devices(state) {
+        if let Some(default_device) = devices.into_iter().find(|d| d.is_default) {
+            let name_lower = default_device.name.to_lowercase();
+            // Identify built-in laptop speakers
+            if name_lower.contains("realtek") || 
+               name_lower.contains("high definition audio") || 
+               name_lower.contains("speaker") ||
+               name_lower.contains("built-in") {
+                return Ok(None);
+            } else {
+                let hardware_name = default_device.name;
+                let mut nickname = None;
+                
+                let db_path = crate::db::get_db_path(&app);
+                if let Ok(conn) = rusqlite::Connection::open(&db_path) {
+                    if let Ok(nick) = conn.query_row(
+                        "SELECT nickname FROM device_nicknames WHERE hardware_name = ?1",
+                        rusqlite::params![hardware_name],
+                        |row| row.get::<_, String>(0)
+                    ) {
+                        nickname = Some(nick);
+                    }
+                }
+
+                return Ok(Some(AudioDeviceInfo {
+                    hardware_name,
+                    nickname,
+                }));
+            }
+        }
+    }
+    Ok(None)
+}
+
 #[tauri::command]
 pub fn switch_audio_device(
     device_id: String,

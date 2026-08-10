@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import Cropper from 'react-easy-crop';
 import getCroppedImg from '../../utils/canvasUtils';
 import './AvatarCropModal.scss';
@@ -7,9 +7,19 @@ interface AvatarCropModalProps {
   imageSrc: string;
   onCropComplete: (base64Avatar: string) => void;
   onCancel: () => void;
+  title?: string;
+  saveButtonText?: string;
+  cropShape?: 'round' | 'rect';
 }
 
-export default function AvatarCropModal({ imageSrc, onCropComplete, onCancel }: AvatarCropModalProps) {
+export default function AvatarCropModal({ 
+  imageSrc, 
+  onCropComplete, 
+  onCancel,
+  title = "Adjust Avatar",
+  saveButtonText = "Save Avatar",
+  cropShape = "round"
+}: AvatarCropModalProps) {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
@@ -41,7 +51,7 @@ export default function AvatarCropModal({ imageSrc, onCropComplete, onCancel }: 
   return (
     <div className="crop-modal-overlay" onClick={onCancel}>
       <div className="crop-modal" onClick={(e) => e.stopPropagation()}>
-        <h3 className="modal-title">Adjust Avatar</h3>
+        <h3 className="modal-title">{title}</h3>
         
         <div className="crop-container">
           <Cropper
@@ -49,8 +59,8 @@ export default function AvatarCropModal({ imageSrc, onCropComplete, onCancel }: 
             crop={crop}
             zoom={zoom}
             aspect={1}
-            cropShape="round"
-            showGrid={false}
+            cropShape={cropShape}
+            showGrid={cropShape === 'rect'}
             onCropChange={onCropChange}
             onCropComplete={onCropCompleteCallback}
             onZoomChange={setZoom}
@@ -74,7 +84,7 @@ export default function AvatarCropModal({ imageSrc, onCropComplete, onCancel }: 
         <div className="modal-actions">
           <button className="secondary-btn" onClick={onCancel} disabled={isProcessing}>Cancel</button>
           <button className="primary-btn" onClick={handleSave} disabled={isProcessing}>
-            {isProcessing ? 'Saving...' : 'Save Avatar'}
+            {isProcessing ? 'Saving...' : saveButtonText}
           </button>
         </div>
       </div>

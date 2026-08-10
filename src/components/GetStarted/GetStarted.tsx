@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import logoMain from '../../assets/logo-main.svg';
+import LogoMain from '../../assets/logo-main.svg?react';
 import './GetStarted.scss';
 
 export default function GetStarted() {
@@ -8,7 +8,7 @@ export default function GetStarted() {
     <div className="main-content">
       {/* Vector Logo Layout */}
       <div className="logo-layout">
-        <img src={logoMain} alt="HertzSonic Logo" className="brand-logo" />
+        <LogoMain className="brand-logo" />
       </div>
 
       {/* Messaging Box */}

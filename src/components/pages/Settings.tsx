@@ -4,8 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import './Settings.scss';
 import { scanAndCacheFolder } from '../../utils/scanner';
 import { useAuth } from '../../context/AuthContext';
-import profileIcon from '../../assets/Profile-icon.svg';
-import { updateProfile } from 'firebase/auth';
+import ProfileIcon from '../../assets/Profile-icon.svg?react';
 import { doc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../../lib/firebase';
 import AvatarCropModal from '../Account/AvatarCropModal';
@@ -158,15 +157,19 @@ export default function Settings() {
                     style={{ position: 'relative', cursor: 'pointer' }}
                     title="Change Avatar"
                   >
-                    <img 
-                      src={user.avatar || profileIcon} 
-                      alt="Avatar" 
-                      className="avatar" 
-                      style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', objectFit: 'cover', opacity: isUploading ? 0.5 : 1 }} 
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = profileIcon;
-                      }}
-                    />
+                    {user.avatar ? (
+                      <img 
+                        src={user.avatar} 
+                        alt="Avatar" 
+                        className="avatar" 
+                        style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', objectFit: 'cover', opacity: isUploading ? 0.5 : 1 }} 
+                      />
+                    ) : (
+                      <ProfileIcon 
+                        className="avatar" 
+                        style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', opacity: isUploading ? 0.5 : 1 }} 
+                      />
+                    )}
                     {isUploading && (
                       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                          <span style={{ fontSize: '10px' }}>...</span>
@@ -305,15 +308,6 @@ export default function Settings() {
                 >
                   <div className="knob"></div>
                 </div>
-              </div>
-            </div>
-            <div className="setting-row">
-              <div className="setting-label">
-                <span className="title">Resampling Quality</span>
-                <span className="desc">Sinc Interpolation (Highest)</span>
-              </div>
-              <div className="setting-action">
-                <span className="badge active">Ultra</span>
               </div>
             </div>
           </div>

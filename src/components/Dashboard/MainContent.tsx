@@ -3,11 +3,11 @@ import './MainContent.scss';
 import TrackRow from '../TrackRow/TrackRow';
 import AlbumCard from '../AlbumCard/AlbumCard';
 import { Track } from '../../types';
-import iconPrevBtn from '../../assets/Previous Btn.svg';
-import iconNextBtn from '../../assets/Next Btn.svg';
-import iconPlayBtn from '../../assets/playing-tab-icons/Play Btn.svg';
-import iconShuffle from '../../assets/playing-tab-icons/Suffle Songs.svg';
-import iconShuffleActive from '../../assets/playing-tab-icons/Suffle Songs Active.svg';
+import IconPrevBtn from '../../assets/Previous Btn.svg?react';
+import IconNextBtn from '../../assets/Next Btn.svg?react';
+import IconPlayBtn from '../../assets/playing-tab-icons/Play Btn.svg?react';
+import IconShuffle from '../../assets/playing-tab-icons/Suffle Songs.svg?react';
+import IconShuffleActive from '../../assets/playing-tab-icons/Suffle Songs Active.svg?react';
 import { useQueue } from '../../context/QueueContext';
 
 interface MainContentProps {
@@ -18,7 +18,7 @@ interface MainContentProps {
 }
 
 export default function MainContent({ musicFiles, currentTrackId, searchQuery = '' }: MainContentProps) {
-  const recentFiles = [...musicFiles].reverse();
+  const recentFiles = [...musicFiles].sort((a, b) => (b.dateAdded || 0) - (a.dateAdded || 0));
 
   const query = searchQuery.trim().toLowerCase();
   const filteredFiles = query
@@ -31,20 +31,22 @@ export default function MainContent({ musicFiles, currentTrackId, searchQuery = 
     : recentFiles;
 
   // Extract distinct albums from the reversed list (most recently added first)
-  const distinctAlbums = [];
-  const albumNames = new Set();
+  const albumMap = new Map<string, { title: string; artist: string; coverArt: string | null }>();
   for (const track of recentFiles) {
-    if (track.album && track.album !== 'Unknown Album' && !albumNames.has(track.album)) {
-      albumNames.add(track.album);
-      distinctAlbums.push({
-        title: track.album,
-        artist: track.artist,
-        coverArt: track.coverArt
-      });
-      if (distinctAlbums.length >= 10) break;
+    if (track.album && track.album !== 'Unknown Album') {
+      if (!albumMap.has(track.album)) {
+        albumMap.set(track.album, {
+          title: track.album,
+          artist: track.artist,
+          coverArt: track.coverArt
+        });
+      } else if (track.coverArt) {
+        const existing = albumMap.get(track.album)!;
+        if (!existing.coverArt) existing.coverArt = track.coverArt;
+      }
     }
   }
-  const recentAlbums = distinctAlbums;
+  const recentAlbums = Array.from(albumMap.values()).slice(0, 10);
 
   const totalDuration = filteredFiles.reduce((acc, curr) => acc + curr.durationSecs, 0);
   const totalHours = Math.floor(totalDuration / 3600);
@@ -108,20 +110,30 @@ export default function MainContent({ musicFiles, currentTrackId, searchQuery = 
           <div className="section-header">
             <h2 className="section-title">Recent albums</h2>
             <div className="section-actions">
-              <span className="view-all">View all</span>
+              <span 
+                className="view-all" 
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent('navigate-library', { 
+                    detail: { tab: 'albums' } 
+                  }));
+                }}
+                style={{ cursor: 'pointer' }}
+              >
+                View all
+              </span>
               <button
                 className="nav-btn"
                 onClick={scrollLeft}
                 style={{ opacity: canScrollLeft ? 1 : 0.3, cursor: canScrollLeft ? 'pointer' : 'default' }}
               >
-                <img src={iconPrevBtn} alt="Previous" />
+                <IconPrevBtn />
               </button>
               <button
                 className="nav-btn"
                 onClick={scrollRight}
                 style={{ opacity: canScrollRight ? 1 : 0.3, cursor: canScrollRight ? 'pointer' : 'default' }}
               >
-                <img src={iconNextBtn} alt="Next" />
+                <IconNextBtn />
               </button>
             </div>
           </div>
@@ -148,14 +160,10 @@ export default function MainContent({ musicFiles, currentTrackId, searchQuery = 
               {filteredFiles.length} tracks &bull; {durationStr}
             </span>
             <button className={`icon-btn shuffle-btn ${isShuffled ? 'active' : ''}`} onClick={toggleShuffle}>
-              <img
-                src={isShuffled ? iconShuffleActive : iconShuffle}
-                alt="Shuffle"
-                style={{ width: 18, height: 18 }}
-              />
+              {isShuffled ? <IconShuffleActive style={{ width: 18, height: 18 }} /> : <IconShuffle style={{ width: 18, height: 18 }} />}
             </button>
             <button className="icon-btn play-all-btn" onClick={handlePlayAll}>
-              <img src={iconPlayBtn} alt="Play" style={{ width: 30, height: 30 }} />
+              <IconPlayBtn style={{ width: 30, height: 30 }} />
             </button>
           </div>
         </div>
@@ -195,7 +203,7 @@ export default function MainContent({ musicFiles, currentTrackId, searchQuery = 
                     filePath={track.path}
                     variant="wide"
                     isActive={track.id === currentTrackId}
-                    isCloud={index % 2 === 0} // Just for demo, alternating source icons
+                    isCloud={track.path.startsWith('http')}
                     onClick={() => playContext(filteredFiles, index)}
                   />
                 );

@@ -66,6 +66,7 @@ pub struct TrackMetadata {
     pub sample_rate: Option<u32>,
     pub bit_depth: Option<u8>,
     pub bitrate: Option<u32>,
+    pub date_added: Option<i64>,
 }
 
 #[tauri::command]
@@ -224,6 +225,19 @@ fn get_track_metadata(app: tauri::AppHandle, file_path: String) -> Result<TrackM
     let sample_rate = props.sample_rate();
     let bit_depth = props.bit_depth();
     let bitrate = props.audio_bitrate();
+    
+    let mut date_added = None;
+    if let Ok(metadata) = std::fs::metadata(&path) {
+        if let Ok(modified) = metadata.modified() {
+            if let Ok(dur) = modified.duration_since(std::time::UNIX_EPOCH) {
+                date_added = Some(dur.as_secs() as i64);
+            }
+        } else if let Ok(created) = metadata.created() {
+            if let Ok(dur) = created.duration_since(std::time::UNIX_EPOCH) {
+                date_added = Some(dur.as_secs() as i64);
+            }
+        }
+    }
 
     Ok(TrackMetadata {
         file_path,
@@ -235,7 +249,21 @@ fn get_track_metadata(app: tauri::AppHandle, file_path: String) -> Result<TrackM
         sample_rate,
         bit_depth,
         bitrate,
+        date_added,
     })
+}
+
+#[tauri::command]
+fn reveal_track_in_explorer(path: String) {
+    #[cfg(target_os = "windows")]
+    {
+        if let Err(e) = std::process::Command::new("explorer")
+            .args(["/select,", &path])
+            .spawn() 
+        {
+            eprintln!("Failed to open explorer: {}", e);
+        }
+    }
 }
 
 use tauri_plugin_sql::{Migration, MigrationKind};
@@ -269,6 +297,7 @@ pub fn run() {
                 CREATE TABLE playlists (
                     id TEXT PRIMARY KEY,
                     name TEXT NOT NULL,
+                    cover_art TEXT,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 );
                 CREATE TABLE playlist_tracks (
@@ -288,13 +317,16 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
-            greet, scan_for_music, get_track_metadata, play_audio, pause_audio, resume_audio, get_audio_position, seek_audio, volume::set_system_volume, volume::get_system_volume, volume::get_audio_devices, volume::switch_audio_device,
+            greet, scan_for_music, get_track_metadata, play_audio, pause_audio, resume_audio, get_audio_position, seek_audio, reveal_track_in_explorer, volume::set_system_volume, volume::get_system_volume, volume::get_audio_devices, volume::switch_audio_device, volume::get_current_audio_device,
             db::save_track_to_cache, db::get_cached_library,
-            db::create_playlist, db::get_playlists, db::delete_playlist, db::add_track_to_playlist, db::remove_track_from_playlist, db::get_playlist_tracks
+            db::create_playlist, db::get_playlists, db::delete_playlist, db::add_track_to_playlist, db::remove_track_from_playlist, db::get_playlist_tracks, db::delete_track, db::update_playlist_cover,
+            db::set_device_nickname, db::get_saved_devices, db::delete_device_nickname
         ])
         // --- WE INJECT THE SETUP HOOK RIGHT HERE ---
         .setup(|app| {
             let app_handle = app.handle().clone();
+            let _ = APP_HANDLE.set(app_handle.clone());
+
             std::thread::spawn(move || {
                 let db_path = crate::db::get_db_path(&app_handle);
                 let mut debug_info = format!("DB Path: {:?}\n", db_path);
@@ -326,6 +358,9 @@ pub fn run() {
                 eprintln!("ERROR: Failed to initialize BASS audio library.");
             } else {
                 println!("BASS audio library initialized successfully.");
+                
+                // Enforce high-quality sample rate conversion (Sinc interpolation)
+                bass_sys::BASS_SetConfig(bass_sys::BASS_CONFIG_SRC, 3);
                 
                 // Load the FLAC plugin dynamically
                 let exe_dir = std::env::current_exe().unwrap().parent().unwrap().to_path_buf();

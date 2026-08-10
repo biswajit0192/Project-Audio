@@ -29,6 +29,26 @@ pub fn ensure_schema(conn: &Connection) -> SqlResult<()> {
         )?;
     }
 
+    let has_cover_art = conn.query_row(
+        "SELECT COUNT(*) FROM pragma_table_info('playlists') WHERE name = 'cover_art'",
+        [],
+        |row| row.get::<_, i32>(0)
+    ).unwrap_or(0) > 0;
+
+    if !is_old && !has_cover_art {
+        let _ = conn.execute("ALTER TABLE playlists ADD COLUMN cover_art TEXT", []);
+    }
+
+    let has_date_added = conn.query_row(
+        "SELECT COUNT(*) FROM pragma_table_info('music_tracks') WHERE name = 'date_added'",
+        [],
+        |row| row.get::<_, i32>(0)
+    ).unwrap_or(0) > 0;
+
+    if !has_date_added {
+        let _ = conn.execute("ALTER TABLE music_tracks ADD COLUMN date_added INTEGER DEFAULT 0", []);
+    }
+
     conn.execute_batch(
         "
         CREATE TABLE IF NOT EXISTS auth_users (
@@ -48,11 +68,13 @@ pub fn ensure_schema(conn: &Connection) -> SqlResult<()> {
             sample_rate INTEGER,
             bit_depth INTEGER,
             bitrate INTEGER,
-            cover_art_path TEXT
+            cover_art_path TEXT,
+            date_added INTEGER DEFAULT 0
         );
         CREATE TABLE IF NOT EXISTS playlists (
             id TEXT PRIMARY KEY,
             name TEXT NOT NULL,
+            cover_art TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
         CREATE TABLE IF NOT EXISTS playlist_tracks (
@@ -60,6 +82,11 @@ pub fn ensure_schema(conn: &Connection) -> SqlResult<()> {
             file_path TEXT NOT NULL,
             added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (playlist_id, file_path)
+        );
+        CREATE TABLE IF NOT EXISTS device_nicknames (
+            hardware_name TEXT PRIMARY KEY,
+            nickname TEXT NOT NULL,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
         "
     )?;
@@ -81,8 +108,8 @@ pub fn save_track_to_cache(app: tauri::AppHandle, track: TrackMetadata) -> Resul
     
     conn.execute(
         "INSERT OR REPLACE INTO music_tracks 
-        (file_path, title, artist, album, duration_secs, sample_rate, bit_depth, bitrate, cover_art_path)
-        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        (file_path, title, artist, album, duration_secs, sample_rate, bit_depth, bitrate, cover_art_path, date_added)
+        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
         params![
             track.file_path,
             track.title,
@@ -92,7 +119,8 @@ pub fn save_track_to_cache(app: tauri::AppHandle, track: TrackMetadata) -> Resul
             track.sample_rate,
             track.bit_depth,
             track.bitrate,
-            track.cover_art // The cover_art field stores the base64 or path for now
+            track.cover_art, // The cover_art field stores the base64 or path for now
+            track.date_added.unwrap_or(0)
         ],
     ).map_err(|e| e.to_string())?;
     
@@ -110,11 +138,11 @@ pub fn get_cached_library(app: tauri::AppHandle) -> Result<Vec<TrackMetadata>, S
     let _ = conn.execute("DELETE FROM music_tracks WHERE cover_art_path LIKE 'data:%'", params![]);
     
     let mut stmt = conn.prepare(
-        "SELECT file_path, title, artist, album, duration_secs, sample_rate, bit_depth, bitrate, cover_art_path FROM music_tracks"
+        "SELECT file_path, title, artist, album, duration_secs, sample_rate, bit_depth, bitrate, cover_art_path, date_added FROM music_tracks ORDER BY id ASC"
     ).map_err(|e| e.to_string())?;
     
     let track_iter = stmt.query_map([], |row| {
-        Ok(TrackMetadata {
+        Ok(crate::TrackMetadata {
             file_path: row.get(0)?,
             title: row.get(1)?,
             artist: row.get(2)?,
@@ -124,6 +152,7 @@ pub fn get_cached_library(app: tauri::AppHandle) -> Result<Vec<TrackMetadata>, S
             bit_depth: row.get(6)?,
             bitrate: row.get(7)?,
             cover_art: row.get(8)?,
+            date_added: row.get(9).ok(),
         })
     }).map_err(|e| e.to_string())?;
 
@@ -139,6 +168,7 @@ pub fn get_cached_library(app: tauri::AppHandle) -> Result<Vec<TrackMetadata>, S
 pub struct Playlist {
     pub id: String,
     pub name: String,
+    pub cover_art: Option<String>,
     pub created_at: String,
 }
 
@@ -157,13 +187,14 @@ pub fn create_playlist(app: tauri::AppHandle, name: String) -> Result<Playlist, 
 
     // Fetch it back to get the DB generated created_at
     let playlist = conn.query_row(
-        "SELECT id, name, created_at FROM playlists WHERE id = ?1",
+        "SELECT id, name, cover_art, created_at FROM playlists WHERE id = ?1",
         params![&id],
         |row| {
             Ok(Playlist {
                 id: row.get(0)?,
                 name: row.get(1)?,
-                created_at: row.get(2)?,
+                cover_art: row.get(2)?,
+                created_at: row.get(3)?,
             })
         }
     ).map_err(|e| e.to_string())?;
@@ -177,12 +208,13 @@ pub fn get_playlists(app: tauri::AppHandle) -> Result<Vec<Playlist>, String> {
     let conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
     ensure_schema(&conn).map_err(|e| e.to_string())?;
 
-    let mut stmt = conn.prepare("SELECT id, name, created_at FROM playlists ORDER BY created_at ASC").map_err(|e| e.to_string())?;
+    let mut stmt = conn.prepare("SELECT id, name, cover_art, created_at FROM playlists ORDER BY created_at ASC").map_err(|e| e.to_string())?;
     let playlist_iter = stmt.query_map([], |row| {
         Ok(Playlist {
             id: row.get(0)?,
             name: row.get(1)?,
-            created_at: row.get(2)?,
+            cover_art: row.get(2)?,
+            created_at: row.get(3)?,
         })
     }).map_err(|e| e.to_string())?;
 
@@ -191,6 +223,20 @@ pub fn get_playlists(app: tauri::AppHandle) -> Result<Vec<Playlist>, String> {
         playlists.push(p.map_err(|e| e.to_string())?);
     }
     Ok(playlists)
+}
+
+#[tauri::command]
+pub fn update_playlist_cover(app: tauri::AppHandle, playlist_id: String, cover_art: Option<String>) -> Result<(), String> {
+    let db_path = get_db_path(&app);
+    let conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
+    ensure_schema(&conn).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "UPDATE playlists SET cover_art = ?1 WHERE id = ?2",
+        params![cover_art, playlist_id],
+    ).map_err(|e| e.to_string())?;
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -253,4 +299,80 @@ pub fn get_playlist_tracks(app: tauri::AppHandle, playlist_id: String) -> Result
     }
     
     Ok(paths)
+}
+
+#[tauri::command]
+pub fn delete_track(app: tauri::AppHandle, file_path: String) -> Result<(), String> {
+    let db_path = get_db_path(&app);
+    let mut conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
+    ensure_schema(&conn).map_err(|e| e.to_string())?;
+
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+    tx.execute(
+        "DELETE FROM playlist_tracks WHERE file_path = ?1",
+        params![&file_path],
+    ).map_err(|e| e.to_string())?;
+    tx.execute(
+        "DELETE FROM music_tracks WHERE file_path = ?1",
+        params![&file_path],
+    ).map_err(|e| e.to_string())?;
+    tx.commit().map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct SavedDevice {
+    pub hardware_name: String,
+    pub nickname: String,
+}
+
+#[tauri::command]
+pub fn set_device_nickname(app: tauri::AppHandle, hardware_name: String, nickname: String) -> Result<(), String> {
+    let db_path = get_db_path(&app);
+    let conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
+    ensure_schema(&conn).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "INSERT OR REPLACE INTO device_nicknames (hardware_name, nickname, updated_at) VALUES (?1, ?2, CURRENT_TIMESTAMP)",
+        params![hardware_name, nickname],
+    ).map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn get_saved_devices(app: tauri::AppHandle) -> Result<Vec<SavedDevice>, String> {
+    let db_path = get_db_path(&app);
+    let conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
+    ensure_schema(&conn).map_err(|e| e.to_string())?;
+
+    let mut stmt = conn.prepare("SELECT hardware_name, nickname FROM device_nicknames ORDER BY updated_at DESC").map_err(|e| e.to_string())?;
+    let device_iter = stmt.query_map([], |row| {
+        Ok(SavedDevice {
+            hardware_name: row.get(0)?,
+            nickname: row.get(1)?,
+        })
+    }).map_err(|e| e.to_string())?;
+
+    let mut devices = Vec::new();
+    for dev in device_iter {
+        devices.push(dev.map_err(|e| e.to_string())?);
+    }
+    
+    Ok(devices)
+}
+
+#[tauri::command]
+pub fn delete_device_nickname(app: tauri::AppHandle, hardware_name: String) -> Result<(), String> {
+    let db_path = get_db_path(&app);
+    let conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
+    ensure_schema(&conn).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "DELETE FROM device_nicknames WHERE hardware_name = ?1",
+        params![hardware_name],
+    ).map_err(|e| e.to_string())?;
+
+    Ok(())
 }

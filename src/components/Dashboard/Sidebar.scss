@@ -165,7 +165,6 @@
           opacity: 1;
           // A crude but effective way to turn a white SVG red if it's an img tag
           // Alternatively, since we know it's active, we assume the icon supports it or we use CSS filter
-          filter: invert(33%) sepia(87%) saturate(5899%) hue-rotate(352deg) brightness(98%) contrast(98%);
 
           &.lucide-icon {
             color: $color-prime;
@@ -244,6 +243,11 @@
       .nav-item {
         justify-content: center;
         padding: 14px 0; // larger hit area since it's just an icon
+
+        .nav-item-content {
+          flex: none;
+          justify-content: center;
+        }
 
         span,
         .nav-badge {

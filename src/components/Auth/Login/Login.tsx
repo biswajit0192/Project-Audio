@@ -4,7 +4,7 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../../../lib/firebase';
 import '../Auth.scss';
-import logoMain from '../../../assets/logo-main.svg';
+import LogoMain from '../../../assets/logo-main.svg?react';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -53,7 +53,7 @@ export default function Login() {
   return (
     <div className="auth-container">
       <div className="logo-layout" style={{ marginBottom: '2rem' }}>
-        <img src={logoMain} alt="HertzSonic Logo" className="brand-logo" />
+        <LogoMain className="brand-logo" />
       </div>
       <h2 className="auth-title">Welcome Back</h2>
       {error && <div className="auth-error" style={{ color: 'red', marginBottom: '1rem', fontSize: '14px' }}>{error}</div>}

@@ -26,7 +26,8 @@ export const scanAndCacheFolder = async (path: string): Promise<void> => {
         cover_art: null,
         sample_rate: null,
         bit_depth: null,
-        bitrate: null
+        bitrate: null,
+        date_added: null
       };
       
       try {

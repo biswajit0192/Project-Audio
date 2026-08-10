@@ -8,6 +8,7 @@ export interface BackendTrackMetadata {
   sample_rate: number | null;
   bit_depth: number | null;
   bitrate: number | null;
+  date_added: number | null;
 }
 
 export interface Track {
@@ -22,4 +23,5 @@ export interface Track {
   sampleRate: number | null;
   bitDepth: number | null;
   bitrate: number | null;
+  dateAdded?: number;
 }

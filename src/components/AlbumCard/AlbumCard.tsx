@@ -1,5 +1,5 @@
 import './AlbumCard.scss';
-import iconPlayBtn from '../../assets/playing-tab-icons/Play Btn.svg';
+import IconPlayBtn from '../../assets/playing-tab-icons/Play Btn.svg?react';
 import { convertFileSrc } from '@tauri-apps/api/core';
 
 export interface AlbumCardProps {
@@ -22,7 +22,7 @@ export default function AlbumCard({ title, artist, coverArt, onClick }: AlbumCar
         )}
         <div className="play-overlay">
           <button className="play-btn">
-            <img src={iconPlayBtn} alt="Play" />
+            <IconPlayBtn />
           </button>
         </div>
       </div>

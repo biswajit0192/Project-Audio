@@ -5,21 +5,21 @@ import './PlayerBar.scss';
 import { Heart } from 'lucide-react';
 
 // Center Icons
-import iconShuffle from '../../assets/playing-tab-icons/Suffle Songs.svg';
-import iconShuffleActive from '../../assets/playing-tab-icons/Suffle Songs Active.svg';
-import iconPlay from '../../assets/playing-tab-icons/Play Btn.svg';
-import iconPause from '../../assets/playing-tab-icons/Pause Btn.svg';
-import iconPrev from '../../assets/playing-tab-icons/Next Track.svg';
-import iconNext from '../../assets/playing-tab-icons/Previous Track.svg';
-import iconRepeat from '../../assets/playing-tab-icons/Repeat Btn.svg';
+import IconShuffle from '../../assets/playing-tab-icons/Suffle Songs.svg?react';
+import IconShuffleActive from '../../assets/playing-tab-icons/Suffle Songs Active.svg?react';
+import IconPlay from '../../assets/playing-tab-icons/Play Btn.svg?react';
+import IconPause from '../../assets/playing-tab-icons/Pause Btn.svg?react';
+import IconPrev from '../../assets/playing-tab-icons/Next Track.svg?react';
+import IconNext from '../../assets/playing-tab-icons/Previous Track.svg?react';
+import IconRepeat from '../../assets/playing-tab-icons/Repeat Btn.svg?react';
 
 // Right Icons
-import iconQueue from '../../assets/playing-tab-icons/Queue.svg';
-import iconEq from '../../assets/playing-tab-icons/Equalizer.svg';
-import iconVolume from '../../assets/playing-tab-icons/Volume.svg';
-import iconMute from '../../assets/playing-tab-icons/mute.svg';
-import iconLock from '../../assets/playing-tab-icons/Lock.svg';
-import iconHeadphones from '../../assets/playing-tab-icons/Headphones.svg';
+import IconQueue from '../../assets/playing-tab-icons/Queue.svg?react';
+import IconEq from '../../assets/playing-tab-icons/Equalizer.svg?react';
+import IconVolume from '../../assets/playing-tab-icons/Volume.svg?react';
+import IconMute from '../../assets/playing-tab-icons/mute.svg?react';
+import IconLock from '../../assets/playing-tab-icons/Lock.svg?react';
+import IconHeadphones from '../../assets/playing-tab-icons/Headphones.svg?react';
 import { useQueue } from '../../context/QueueContext';
 
 export default function PlayerBar() {
@@ -408,19 +408,19 @@ export default function PlayerBar() {
             onClick={toggleShuffle}
             title="Shuffle"
           >
-            <img src={isShuffled ? iconShuffleActive : iconShuffle} alt="Shuffle" />
+            {isShuffled ? <IconShuffleActive /> : <IconShuffle />}
           </button>
-          <button className="control-btn" onClick={previousTrack} title="Previous"><img src={iconNext} alt="Previous" /></button>
+          <button className="control-btn" onClick={previousTrack} title="Previous"><IconNext /></button>
           <button className="control-btn play-btn" onClick={handlePlayClick} title={isPlaying ? "Pause" : "Play"}>
             {isPlaying ? (
-              <img src={iconPause} alt="Pause" />
+              <IconPause />
             ) : (
-              <img src={iconPlay} alt="Play" />
+              <IconPlay />
             )}
           </button>
-          <button className="control-btn" onClick={nextTrack} title="Next"><img src={iconPrev} alt="Next" /></button>
+          <button className="control-btn" onClick={nextTrack} title="Next"><IconPrev /></button>
           <button className="control-btn" onClick={toggleRepeat} title={`Repeat: ${repeatMode}`}>
-            <img src={iconRepeat} alt="Repeat" style={{ filter: repeatMode === 'one' ? 'hue-rotate(90deg)' : 'none' }} />
+            <IconRepeat style={{ filter: repeatMode === 'one' ? 'hue-rotate(90deg)' : 'none' }} />
           </button>
         </div>
 
@@ -447,10 +447,10 @@ export default function PlayerBar() {
 
         <div className="right-controls">
           <button className="ext-control-btn queue-btn" title="Queue">
-            <img src={iconQueue} alt="Queue" />
+            <IconQueue />
           </button>
           <button className="ext-control-btn" title="Equalizer">
-            <img src={iconEq} alt="Equalizer" />
+            <IconEq />
           </button>
 
           <div className="volume-section">
@@ -472,13 +472,13 @@ export default function PlayerBar() {
               }}>+</button>
             </div>
             <div className="volume-bar-wrapper">
-              <img
-                src={volumeDb <= -64.0 ? iconMute : iconVolume}
-                alt="Volume"
+              <span 
                 className="volume-icon"
                 onClick={handleMuteToggle}
-                style={{ cursor: 'pointer' }}
-              />
+                style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+              >
+                {volumeDb <= -64.0 ? <IconMute /> : <IconVolume />}
+              </span>
               <div className="volume-track" ref={volumeTrackRef} onMouseDown={handleVolumeStart}>
                 <div className="volume-fill" style={{ width: `${((volumeDb + 64) / 64) * 100}%` }}>
                   <div className="volume-thumb" />
@@ -488,10 +488,10 @@ export default function PlayerBar() {
           </div>
 
           <button className="ext-control-btn" title="Lock">
-            <img src={iconLock} alt="Lock" />
+            <IconLock />
           </button>
           <button className="ext-control-btn" title="Headphones output" onClick={handleDeviceListClick}>
-            <img src={iconHeadphones} alt="Headphones" />
+            <IconHeadphones />
           </button>
 
           {showDeviceList && (

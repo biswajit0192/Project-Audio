@@ -1,0 +1,214 @@
+@use '../../variables' as *;
+
+.device-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.75);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  backdrop-filter: blur(8px);
+}
+
+.device-modal {
+  background-color: #1a1a1a;
+  border-radius: 16px;
+  width: 90%;
+  max-width: 420px;
+  padding: $spacing-xl;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: $spacing-xl;
+
+    .modal-title {
+      margin: 0;
+      font-size: $font-size-headings;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .close-btn, .back-btn {
+      background: transparent;
+      border: none;
+      color: $color-secondary-text;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px;
+      border-radius: 50%;
+      transition: all 0.2s;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: #fff;
+      }
+    }
+  }
+
+  .active-device-info {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: $spacing-xl;
+
+    label {
+      font-size: $font-size-s;
+      color: $color-secondary-text;
+      text-transform: uppercase;
+      font-weight: 600;
+      margin-top: 8px;
+    }
+
+    .hardware-name {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 12px;
+      border-radius: 8px;
+      color: #fff;
+      font-family: monospace;
+      font-size: 13px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      word-break: break-all;
+    }
+
+    .nickname-input-group {
+      display: flex;
+      gap: 12px;
+      
+      input {
+        flex: 1;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        padding: 0 12px;
+        color: #fff;
+        font-size: 14px;
+        outline: none;
+
+        &:focus {
+          border-color: $color-prime;
+        }
+      }
+
+      .save-btn {
+        background: $color-prime;
+        color: black;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: opacity 0.2s;
+
+        &:hover:not(:disabled) {
+          opacity: 0.9;
+        }
+
+        &:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+      }
+    }
+  }
+
+  .modal-footer {
+    display: flex;
+    justify-content: center;
+
+    .view-saved-btn {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-weight: 500;
+      cursor: pointer;
+      width: 100%;
+      transition: all 0.2s;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.05);
+      }
+    }
+  }
+
+  .saved-devices-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 300px;
+    overflow-y: auto;
+    
+    &::-webkit-scrollbar {
+      width: 4px;
+    }
+    &::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+    }
+
+    .empty-state {
+      text-align: center;
+      color: $color-secondary-text;
+      padding: $spacing-xl 0;
+    }
+
+    .saved-device-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+
+      .device-names {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+
+        .nickname {
+          color: #fff;
+          font-weight: 500;
+        }
+
+        .hardware {
+          color: $color-secondary-text;
+          font-size: 11px;
+          font-family: monospace;
+          max-width: 250px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+      }
+
+      .delete-btn {
+        background: transparent;
+        border: none;
+        color: rgba(255, 100, 100, 0.7);
+        cursor: pointer;
+        padding: 8px;
+        border-radius: 8px;
+        transition: all 0.2s;
+
+        &:hover {
+          background: rgba(255, 100, 100, 0.1);
+          color: rgb(255, 100, 100);
+        }
+      }
+    }
+  }
+}

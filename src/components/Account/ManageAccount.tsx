@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { updateProfile, deleteUser } from 'firebase/auth';
+import { updateProfile, deleteUser, signOut } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 import { auth, db } from '../../lib/firebase';
 import { useAuth } from '../../context/AuthContext';
-import profileIcon from '../../assets/Profile-icon.svg';
+import ProfileIcon from '../../assets/Profile-icon.svg?react';
 import AvatarCropModal from './AvatarCropModal';
 import './ManageAccount.scss';
 
@@ -120,13 +120,19 @@ export default function ManageAccount({ onClose }: ManageAccountProps) {
                 onClick={() => !isUploading && fileInputRef.current?.click()}
                 title="Change Avatar"
               >
-                <img 
-                  src={user.avatar || profileIcon} 
-                  alt="Avatar" 
-                  className="avatar-large" 
-                  style={{ opacity: isUploading ? 0.5 : 1 }}
-                  onError={(e) => { (e.target as HTMLImageElement).src = profileIcon; }}
-                />
+                {user.avatar ? (
+                  <img 
+                    src={user.avatar} 
+                    alt="Avatar" 
+                    className="avatar-large" 
+                    style={{ opacity: isUploading ? 0.5 : 1 }}
+                  />
+                ) : (
+                  <ProfileIcon 
+                    className="avatar-large" 
+                    style={{ opacity: isUploading ? 0.5 : 1 }}
+                  />
+                )}
                 <div className="edit-badge">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                 </div>

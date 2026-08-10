@@ -1,17 +1,21 @@
 import './Sidebar.scss';
-import logoMain from '../../assets/logo-main.svg';
-import logoSymbol from '../../assets/logo-symbol.svg';
-import iconConnectedDevice from '../../assets/Connected Device.svg';
-import iconHome from '../../assets/Nav/Home.svg';
-import iconLibrary from '../../assets/Library.svg';
-import iconEqualizer from '../../assets/Equalizer.svg';
-import iconConvert from '../../assets/Convert File.svg';
-import iconCompare from '../../assets/Compare.svg';
-import iconLiked from '../../assets/Nav/Liked.svg';
-import iconPlaylist from '../../assets/Nav/PlayList.svg';
-import iconSettings from '../../assets/Settings.svg';
+import LogoMain from '../../assets/logo-main.svg?react';
+import LogoSymbol from '../../assets/logo-symbol.svg?react';
+import IconConnectedDevice from '../../assets/Connected Device.svg?react';
+import IconHome from '../../assets/Nav/Home.svg?react';
+import IconLibrary from '../../assets/Library.svg?react';
+import IconEqualizer from '../../assets/Equalizer.svg?react';
+import IconConvert from '../../assets/Convert File.svg?react';
+import IconCompare from '../../assets/Compare.svg?react';
+import IconLiked from '../../assets/Nav/Liked.svg?react';
+import IconPlaylist from '../../assets/Nav/PlayList.svg?react';
+import IconSettings from '../../assets/Settings.svg?react';
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { usePlaylists } from '../../context/PlaylistContext';
+import { useEffect, useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
+import DeviceModal, { AudioDeviceInfo } from '../DeviceModal/DeviceModal';
 
 interface SidebarProps {
   activeView: string;
@@ -22,16 +26,38 @@ interface SidebarProps {
 
 export default function Sidebar({ activeView, onNavigate, isCollapsed, onToggleCollapse }: SidebarProps) {
   const { playlists, favoritePaths, playlistCounts } = usePlaylists();
+  const [audioDevice, setAudioDevice] = useState<AudioDeviceInfo | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const fetchDevice = async () => {
+    try {
+      const device = await invoke<AudioDeviceInfo | null>('get_current_audio_device');
+      setAudioDevice(device);
+    } catch (err) {
+      console.error("Failed to fetch audio device:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchDevice();
+
+    const unlisten = listen('audio-devices-changed', () => {
+      fetchDevice();
+    });
+
+    return () => {
+      unlisten.then(f => f());
+    };
+  }, []);
 
   return (
     <div className={`dashboard-sidebar ${isCollapsed ? 'collapsed' : ''}`}>
       <div className="sidebar-header" data-tauri-drag-region>
-        <img 
-          src={isCollapsed ? logoSymbol : logoMain} 
-          alt="HertzSonic" 
-          className="sidebar-logo" 
-          data-tauri-drag-region 
-        />
+        {isCollapsed ? (
+          <LogoSymbol className="sidebar-logo" data-tauri-drag-region />
+        ) : (
+          <LogoMain className="sidebar-logo" data-tauri-drag-region />
+        )}
         <button className="collapse-btn" onClick={onToggleCollapse}>
           {isCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
         </button>
@@ -42,10 +68,20 @@ export default function Sidebar({ activeView, onNavigate, isCollapsed, onToggleC
         {/* Connected Section */}
         <div className="sidebar-section">
           <ul className="nav-list">
-            <li className="nav-item">
+            <li
+              className="nav-item"
+              onClick={() => {
+                if (audioDevice) setIsModalOpen(true);
+              }}
+              style={{ cursor: audioDevice ? 'pointer' : 'default' }}
+            >
               <div className="nav-item-content">
-                <img src={iconConnectedDevice} alt="Connected" className="nav-icon" />
-                <span>JCally JM12</span>
+                <IconConnectedDevice
+                  className="nav-icon"
+                  style={{ opacity: audioDevice ? 1 : 0.4 }}
+                /><span style={{ color: audioDevice ? 'inherit' : '#94a3b8' }}>
+                  {audioDevice ? (audioDevice.nickname || audioDevice.hardware_name) : 'No Device'}
+                </span>
               </div>
             </li>
           </ul>
@@ -66,7 +102,7 @@ export default function Sidebar({ activeView, onNavigate, isCollapsed, onToggleC
               onClick={() => onNavigate('home')}
             >
               <div className="nav-item-content">
-                <img src={iconHome} alt="Home" className="nav-icon" />
+                <IconHome className="nav-icon" />
                 <span>Home</span>
               </div>
             </li>
@@ -75,28 +111,28 @@ export default function Sidebar({ activeView, onNavigate, isCollapsed, onToggleC
               onClick={() => onNavigate('library')}
             >
               <div className="nav-item-content">
-                <img src={iconLibrary} alt="Library" className="nav-icon" />
+                <IconLibrary className="nav-icon" />
                 <span>Library</span>
               </div>
             </li>
             <li className="nav-item">
               <div className="nav-item-content">
-                <img src={iconEqualizer} alt="Equalizer" className="nav-icon" />
+                <IconEqualizer className="nav-icon" />
                 <span>Equalizer</span>
               </div>
             </li>
-            <li className="nav-item">
+            {/* <li className="nav-item">
               <div className="nav-item-content">
-                <img src={iconConvert} alt="Convert Files" className="nav-icon" />
+                <IconConvert className="nav-icon" />
                 <span>Convert Files</span>
               </div>
-            </li>
-            <li className="nav-item">
+            </li> */}
+            {/* <li className="nav-item">
               <div className="nav-item-content">
-                <img src={iconCompare} alt="Compare Files" className="nav-icon" />
+                <IconCompare className="nav-icon" />
                 <span>Compare Files</span>
               </div>
-            </li>
+            </li> */}
           </ul>
         </div>
 
@@ -107,37 +143,37 @@ export default function Sidebar({ activeView, onNavigate, isCollapsed, onToggleC
           {!isCollapsed && (
             <div className="section-header">
               <h3>Playlists</h3>
-              <span className="view-all">View All</span>
+              <span className="view-all" onClick={() => onNavigate('all_playlists')} style={{ cursor: 'pointer' }}>View All</span>
             </div>
           )}
           <ul className="nav-list">
             {isCollapsed ? (
               <li className="nav-item">
-                <img src={iconPlaylist} alt="All Playlists" className="nav-icon" />
+                <IconPlaylist className="nav-icon" />
               </li>
             ) : (
               <>
                 {/* Pinned Default Playlists */}
-                <li 
+                <li
                   className={`nav-item ${activeView === 'playlist_favorites' ? 'active' : ''}`}
                   onClick={() => onNavigate('playlist_favorites')}
                 >
                   <div className="nav-item-content">
-                    <img src={iconLiked} alt="Favorites" className="nav-icon" />
+                    <IconLiked className="nav-icon" />
                     <span>Favorites</span>
                   </div>
                   <span className="nav-badge">{favoritePaths.size}</span>
                 </li>
-                
+
                 {/* Dynamic Custom Playlists */}
                 {playlists.map((playlist) => (
-                  <li 
-                    key={playlist.id} 
+                  <li
+                    key={playlist.id}
                     className={`nav-item ${activeView === `playlist_${playlist.id}` ? 'active' : ''}`}
                     onClick={() => onNavigate(`playlist_${playlist.id}`)}
                   >
                     <div className="nav-item-content">
-                      <img src={iconPlaylist} alt={playlist.name} className="nav-icon" />
+                      <IconPlaylist className="nav-icon" />
                       <span>{playlist.name}</span>
                     </div>
                     <span className="nav-badge">{playlistCounts[playlist.id] || 0}</span>
@@ -158,7 +194,7 @@ export default function Sidebar({ activeView, onNavigate, isCollapsed, onToggleC
               onClick={() => onNavigate('settings')}
             >
               <div className="nav-item-content">
-                <img src={iconSettings} alt="Settings" className="nav-icon" />
+                <IconSettings className="nav-icon" />
                 <span>Settings</span>
               </div>
             </li>
@@ -166,6 +202,14 @@ export default function Sidebar({ activeView, onNavigate, isCollapsed, onToggleC
         </div>
 
       </div>
+
+      {isModalOpen && audioDevice && (
+        <DeviceModal
+          currentDevice={audioDevice}
+          onClose={() => setIsModalOpen(false)}
+          onNicknameUpdated={fetchDevice}
+        />
+      )}
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../../../lib/firebase';
 import '../Auth.scss';
-import logoMain from '../../../assets/logo-main.svg';
+import LogoMain from '../../../assets/logo-main.svg?react';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -29,7 +29,7 @@ export default function ForgotPassword() {
   return (
     <div className="auth-container">
       <div className="logo-layout" style={{ marginBottom: '2rem' }}>
-        <img src={logoMain} alt="HertzSonic Logo" className="brand-logo" />
+        <LogoMain className="brand-logo" />
       </div>
       <h2 className="auth-title">Reset Password</h2>
       {error && <div className="auth-error" style={{ color: 'red', marginBottom: '1rem', fontSize: '14px' }}>{error}</div>}

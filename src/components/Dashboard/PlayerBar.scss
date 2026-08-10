@@ -119,12 +119,14 @@
       transition: transform 0.1s, opacity 0.2s;
       opacity: $button-inactive;
 
+      svg,
       img {
         width: 16px;
         height: auto;
       }
 
-      &:hover, &.active {
+      &:hover,
+      &.active {
         opacity: $button-active;
       }
 
@@ -132,6 +134,7 @@
         opacity: $button-active;
         transition: transform 0.2s;
 
+        svg,
         img {
           width: 36px;
           height: 36px;
@@ -208,8 +211,9 @@
     padding: 2px 6px;
     gap: 8px;
     position: absolute;
-    right: 2%;
-    top: -32px;
+    bottom: 100%;
+    margin-bottom: 6px;
+    left: 24px; // Align horizontally with the volume track
 
     .gain-btn {
       background: rgba(255, 255, 255, 0.1);
@@ -245,6 +249,7 @@
     display: flex;
     align-items: center;
     gap: 20px;
+    margin-top: 40px; // Pushes the entire right section down so the gain-control on top is perfectly balanced with the space on the bottom
 
     .ext-control-btn {
       background: none;
@@ -256,27 +261,34 @@
       display: flex;
       align-items: center;
 
+      svg,
       img {
         width: 16px;
         height: auto;
       }
 
-      &:hover, &.active {
+      &:hover,
+      &.active {
         opacity: $button-active;
       }
 
-      &.queue-btn img {
-        // Red color for the active queue icon to match design
-        // If the SVG isn't red already, this filter will color it:
-        filter: invert(27%) sepia(91%) saturate(7351%) hue-rotate(355deg) brightness(96%) contrast(116%);
+      &.queue-btn {
+        &.active {
+          opacity: 1;
+        }
+
+        svg,
+        img {
+          // Red color for the active queue icon to match design
+          // If the SVG isn't red already, this filter will color it:
+
+        }
       }
     }
 
     .volume-section {
       display: flex;
-      flex-direction: column;
       align-items: center;
-      gap: 12px;
       position: relative;
 
       .volume-bar-wrapper {
