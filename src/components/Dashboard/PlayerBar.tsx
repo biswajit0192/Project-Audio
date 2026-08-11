@@ -34,6 +34,11 @@ export default function PlayerBar() {
   const [playingTrackPath, setPlayingTrackPath] = useState<string | null>(currentTrack?.path || null);
   const isLoadedInBackend = useRef(false);
   const [currentTime, setCurrentTime] = useState(0);
+  const currentTimeRef = useRef(currentTime);
+  useEffect(() => {
+    currentTimeRef.current = currentTime;
+  }, [currentTime]);
+
   const [isDragging, setIsDragging] = useState(false);
   const progressTrackRef = useRef<HTMLDivElement>(null);
 
@@ -52,15 +57,86 @@ export default function PlayerBar() {
     nextTrackRef.current = nextTrack;
   }, [nextTrack]);
 
+  const previousTrackRef = useRef(previousTrack);
+  useEffect(() => {
+    previousTrackRef.current = previousTrack;
+  }, [previousTrack]);
+
+  const handlePlayClickRef = useRef<() => Promise<void>>(async () => {});
+
   useEffect(() => {
     let unlistenFn: (() => void) | undefined;
+    let unlistenNext: (() => void) | undefined;
+    let unlistenPrev: (() => void) | undefined;
+    let unlistenToggle: (() => void) | undefined;
+    
     listen('track-ended', () => {
       nextTrackRef.current();
     }).then(f => { unlistenFn = f; });
+
+    listen('media-next', () => {
+      nextTrackRef.current();
+    }).then(f => { unlistenNext = f; });
+
+    listen('media-prev', () => {
+      previousTrackRef.current();
+    }).then(f => { unlistenPrev = f; });
+
+    listen('media-toggle', () => {
+      handlePlayClickRef.current();
+    }).then(f => { unlistenToggle = f; });
+
+    const handleShortcutAction = (e: Event) => {
+      const action = (e as CustomEvent<{ action: string }>).detail.action;
+      if (action === 'PLAY_PAUSE') {
+        handlePlayClickRef.current();
+      } else if (action === 'NEXT_TRACK') {
+        nextTrackRef.current();
+      } else if (action === 'PREV_TRACK') {
+        previousTrackRef.current();
+      } else if (action === 'SKIP_FORWARD_10') {
+        if (!currentTrack) return;
+        const newTime = Math.min(currentTimeRef.current + 10, currentTrack.durationSecs);
+        invoke('seek_audio', { positionSecs: newTime }).catch(console.error);
+        setCurrentTime(newTime);
+      } else if (action === 'SKIP_BACKWARD_10') {
+        const newTime = Math.max(0, currentTimeRef.current - 10);
+        invoke('seek_audio', { positionSecs: newTime }).catch(console.error);
+        setCurrentTime(newTime);
+      } else if (action === 'VOLUME_UP') {
+        const v = volumeDbRef.current;
+        let newDb = v + 3; // +3 dB
+        if (newDb > 0) newDb = 0;
+        const scalar = Math.pow(10, newDb / 20);
+        invoke('set_system_volume', { scalar }).catch(console.error);
+        // We do not setCurrentVolumeDb because `os-volume-changed` listener updates it automatically
+      } else if (action === 'VOLUME_DOWN') {
+        const v = volumeDbRef.current;
+        let newDb = v - 3; // -3 dB
+        if (newDb < -64) newDb = -64;
+        const scalar = Math.pow(10, newDb / 20);
+        invoke('set_system_volume', { scalar }).catch(console.error);
+      } else if (action === 'TOGGLE_MUTE') {
+        if (volumeDbRef.current > -64.0) {
+          invoke('set_system_volume', { scalar: 0.0 }).catch(console.error);
+        } else {
+          // Unmute to previous or -12dB
+          const prev = prevVolumeDb > -64.0 ? prevVolumeDb : -12.0;
+          const scalar = Math.pow(10, prev / 20);
+          invoke('set_system_volume', { scalar }).catch(console.error);
+        }
+      }
+    };
+    window.addEventListener('shortcut-action', handleShortcutAction);
+
     return () => {
       if (unlistenFn) unlistenFn();
+      if (unlistenNext) unlistenNext();
+      if (unlistenPrev) unlistenPrev();
+      if (unlistenToggle) unlistenToggle();
+      window.removeEventListener('shortcut-action', handleShortcutAction);
     };
-  }, []);
+  }, [currentTrack, prevVolumeDb]);
 
   const isPromptingRef = useRef(false);
   const [volumeWarning, setVolumeWarning] = useState<{
@@ -311,6 +387,10 @@ export default function PlayerBar() {
       console.error('Failed to toggle audio playback:', e);
     }
   };
+
+  useEffect(() => {
+    handlePlayClickRef.current = handlePlayClick;
+  }, [handlePlayClick, currentTrack, isPlaying]);
 
   const handleSeekUpdate = (e: React.MouseEvent | MouseEvent) => {
     if (!currentTrack || !progressTrackRef.current) return;

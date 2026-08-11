@@ -370,3 +370,25 @@ body,
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.2);
 }
+
+.back-nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent !important;
+  border: none !important;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 8px 0;
+  cursor: pointer;
+  transition: color 0.2s;
+  box-shadow: none !important;
+
+  &:hover {
+    color: #fff;
+    background: transparent !important;
+    border-color: transparent !important;
+    transform: none !important;
+  }
+}

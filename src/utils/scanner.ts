@@ -37,4 +37,14 @@ export const scanAndCacheFolder = async (path: string): Promise<void> => {
       }
     }
   }
+
+  // After all new/updated tracks are saved, purge any missing files from the DB
+  try {
+    const prunedCount: number = await invoke('cleanup_ghost_tracks');
+    if (prunedCount > 0) {
+      console.log(`Pruned ${prunedCount} missing tracks from the database.`);
+    }
+  } catch (err) {
+    console.error('Failed to prune ghost tracks:', err);
+  }
 };

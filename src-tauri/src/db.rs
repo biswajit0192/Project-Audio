@@ -133,6 +133,45 @@ pub fn save_track_to_cache(app: tauri::AppHandle, track: TrackMetadata) -> Resul
 }
 
 #[tauri::command]
+pub fn cleanup_ghost_tracks(app: tauri::AppHandle) -> Result<usize, String> {
+    let db_path = get_db_path(&app);
+    let mut conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
+    
+    ensure_schema(&conn).map_err(|e| e.to_string())?;
+
+    let mut missing_paths = Vec::new();
+    {
+        // Scope the prepare and query_map so the immutable borrow on `conn` is dropped
+        let mut stmt = conn.prepare("SELECT file_path FROM music_tracks").map_err(|e| e.to_string())?;
+        let paths_iter = stmt.query_map([], |row| {
+            let path: String = row.get(0)?;
+            Ok(path)
+        }).map_err(|e| e.to_string())?;
+
+        for path_result in paths_iter {
+            if let Ok(path) = path_result {
+                if !std::path::Path::new(&path).exists() {
+                    missing_paths.push(path);
+                }
+            }
+        }
+    }
+
+    let mut deleted_count = 0;
+    if !missing_paths.is_empty() {
+        let tx = conn.transaction().map_err(|e| e.to_string())?;
+        for path in missing_paths {
+            tx.execute("DELETE FROM music_tracks WHERE file_path = ?1", params![path])
+                .map_err(|e| e.to_string())?;
+            deleted_count += 1;
+        }
+        tx.commit().map_err(|e| e.to_string())?;
+    }
+
+    Ok(deleted_count)
+}
+
+#[tauri::command]
 pub fn get_cached_library(app: tauri::AppHandle) -> Result<Vec<TrackMetadata>, String> {
     let db_path = get_db_path(&app);
     let conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
@@ -307,22 +346,38 @@ pub fn get_playlist_tracks(app: tauri::AppHandle, playlist_id: String) -> Result
 }
 
 #[tauri::command]
-pub fn delete_track(app: tauri::AppHandle, file_path: String) -> Result<(), String> {
+pub fn delete_track(app: tauri::AppHandle, file_path: String, use_trash: bool) -> Result<(), String> {
+    // 1. Delete the physical file
+    if use_trash {
+        if let Err(e) = trash::delete(&file_path) {
+            return Err(format!("Failed to move file to recycle bin: {}", e));
+        }
+    } else {
+        if let Err(e) = std::fs::remove_file(&file_path) {
+            return Err(format!("Failed to permanently delete file: {}", e));
+        }
+    }
+
+    // 2. Remove it from the database (music_tracks table)
     let db_path = get_db_path(&app);
     let mut conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
-    ensure_schema(&conn).map_err(|e| e.to_string())?;
-
+    
     let tx = conn.transaction().map_err(|e| e.to_string())?;
-    tx.execute(
-        "DELETE FROM playlist_tracks WHERE file_path = ?1",
-        params![&file_path],
-    ).map_err(|e| e.to_string())?;
+    
     tx.execute(
         "DELETE FROM music_tracks WHERE file_path = ?1",
-        params![&file_path],
+        params![file_path],
     ).map_err(|e| e.to_string())?;
-    tx.commit().map_err(|e| e.to_string())?;
+    
+    // We optionally remove it from playlist_tracks if you want, but SQLite foreign keys / cleanups usually handle or it won't crash the frontend.
+    // Let's do it manually just in case
+    tx.execute(
+        "DELETE FROM playlist_tracks WHERE file_path = ?1",
+        params![file_path],
+    ).map_err(|e| e.to_string())?;
 
+    tx.commit().map_err(|e| e.to_string())?;
+    
     Ok(())
 }
 

@@ -91,6 +91,11 @@
           font-weight: 500;
         }
 
+        > svg {
+          width: 24px !important;
+          height: 24px !important;
+        }
+
         .remove-cover-btn {
           position: absolute;
           top: $spacing-s;

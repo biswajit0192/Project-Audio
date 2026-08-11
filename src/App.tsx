@@ -14,6 +14,8 @@ import ProfileIcon from './assets/Profile-icon.svg?react';
 import { scanAndCacheFolder } from './utils/scanner';
 import { useAuth } from './context/AuthContext';
 import ManageAccount from './components/Account/ManageAccount';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { defaultShortcuts, ShortcutConfig } from './types/shortcuts';
 
 export default function App() {
   const appWindow = getCurrentWindow();
@@ -30,6 +32,23 @@ export default function App() {
     const handleOpenManageAccount = () => setShowManageAccount(true);
     window.addEventListener('open-manage-account', handleOpenManageAccount);
     return () => window.removeEventListener('open-manage-account', handleOpenManageAccount);
+  }, []);
+
+  const [shortcuts, setShortcuts] = useState<ShortcutConfig[]>(() => {
+    const saved = localStorage.getItem('hertzsonic_shortcuts');
+    return saved ? JSON.parse(saved) : defaultShortcuts;
+  });
+  useKeyboardShortcuts(shortcuts);
+
+  useEffect(() => {
+    const handleShortcutsUpdate = () => {
+      const saved = localStorage.getItem('hertzsonic_shortcuts');
+      if (saved) {
+        setShortcuts(JSON.parse(saved));
+      }
+    };
+    window.addEventListener('shortcuts-updated', handleShortcutsUpdate);
+    return () => window.removeEventListener('shortcuts-updated', handleShortcutsUpdate);
   }, []);
 
   useEffect(() => {

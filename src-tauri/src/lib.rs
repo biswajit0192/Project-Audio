@@ -1,5 +1,6 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 use std::path::Path;
+use tauri_plugin_global_shortcut::{Code, Modifiers, ShortcutState, Shortcut};
 use serde::{Deserialize, Serialize};
 use lofty::file::{AudioFile, TaggedFileExt};
 use lofty::probe::Probe;
@@ -318,10 +319,31 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             greet, scan_for_music, get_track_metadata, play_audio, pause_audio, resume_audio, get_audio_position, seek_audio, reveal_track_in_explorer, volume::set_system_volume, volume::get_system_volume, volume::get_audio_devices, volume::switch_audio_device, volume::get_current_audio_device,
-            db::save_track_to_cache, db::get_cached_library,
+            db::save_track_to_cache, db::get_cached_library, db::cleanup_ghost_tracks,
             db::create_playlist, db::get_playlists, db::delete_playlist, db::add_track_to_playlist, db::remove_track_from_playlist, db::get_playlist_tracks, db::delete_track, db::update_playlist_cover,
             db::set_device_nickname, db::get_saved_devices, db::delete_device_nickname
         ])
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_shortcuts([
+                    Shortcut::new(Some(Modifiers::empty()), Code::MediaPlayPause),
+                    Shortcut::new(Some(Modifiers::empty()), Code::MediaTrackNext),
+                    Shortcut::new(Some(Modifiers::empty()), Code::MediaTrackPrevious)
+                ])
+                .unwrap()
+                .with_handler(|app, shortcut, event| {
+                    if event.state == ShortcutState::Pressed {
+                        if shortcut.matches(Modifiers::empty(), Code::MediaPlayPause) {
+                            let _ = app.emit("media-toggle", ());
+                        } else if shortcut.matches(Modifiers::empty(), Code::MediaTrackNext) {
+                            let _ = app.emit("media-next", ());
+                        } else if shortcut.matches(Modifiers::empty(), Code::MediaTrackPrevious) {
+                            let _ = app.emit("media-prev", ());
+                        }
+                    }
+                })
+                .build()
+        )
         // --- WE INJECT THE SETUP HOOK RIGHT HERE ---
         .setup(|app| {
             let app_handle = app.handle().clone();

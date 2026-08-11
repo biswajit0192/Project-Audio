@@ -176,7 +176,7 @@ export default function PlaylistDetail({ playlistId, musicFiles }: PlaylistDetai
 
           {!playlistInfo?.isFavorites && (
             <div className="playlist-collage-overlay">
-              <Camera size={32} />
+              <Camera size={20} />
               <span>Edit Cover</span>
               {playlistInfo?.coverArt && (
                 <button className="remove-cover-btn" onClick={handleRemoveCover} title="Remove custom cover">

@@ -44,13 +44,14 @@ export default function TrackRow({
   onClick
 }: TrackRowProps) {
   const { playlists, favoritePaths, toggleFavorite, addTrackToPlaylist, createPlaylist } = usePlaylists();
-  const { playNext, addToQueue } = useQueue();
+  const { queue, playNext, addToQueue, removeFromQueue } = useQueue();
   const [showDropdown, setShowDropdown] = useState(false);
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [useTrash, setUseTrash] = useState(true);
   const [isPlayerPlaying, setIsPlayerPlaying] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
@@ -208,7 +209,15 @@ export default function TrackRow({
   const handleDeleteTrack = async () => {
     setShowDeleteModal(false);
     if (filePath) {
-      await invoke('delete_track', { filePath }).catch(console.error);
+      await invoke('delete_track', { filePath, useTrash }).catch(console.error);
+      
+      // Iterate backward to remove all instances from queue seamlessly
+      for (let i = queue.length - 1; i >= 0; i--) {
+        if (queue[i].path === filePath) {
+          removeFromQueue(i);
+        }
+      }
+      
       window.dispatchEvent(new Event('library-updated'));
     }
   };
@@ -360,6 +369,30 @@ export default function TrackRow({
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <h3>Delete Track</h3>
             <p>Are you sure you want to remove '{title}'? This will remove it from your library.</p>
+            
+            <div className="delete-options" style={{ display: 'flex', flexDirection: 'column', gap: '12px', margin: '20px 0', background: 'rgba(255,255,255,0.05)', padding: '16px', borderRadius: '8px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
+                <input 
+                  type="radio" 
+                  name="deleteType" 
+                  checked={useTrash} 
+                  onChange={() => setUseTrash(true)} 
+                  style={{ accentColor: '#e53935', cursor: 'pointer', width: '16px', height: '16px' }}
+                />
+                <span style={{ fontSize: '14px', color: 'rgba(255,255,255,0.9)' }}>Move to Recycle Bin</span>
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
+                <input 
+                  type="radio" 
+                  name="deleteType" 
+                  checked={!useTrash} 
+                  onChange={() => setUseTrash(false)} 
+                  style={{ accentColor: '#e53935', cursor: 'pointer', width: '16px', height: '16px' }}
+                />
+                <span style={{ fontSize: '14px', color: 'rgba(255,255,255,0.9)' }}>Delete Permanently</span>
+              </label>
+            </div>
+
             <div className="modal-actions">
               <button className="btn-cancel" onClick={() => setShowDeleteModal(false)}>Cancel</button>
               <button className="btn-delete" onClick={handleDeleteTrack}>Delete</button>

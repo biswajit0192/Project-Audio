@@ -9,6 +9,7 @@ import ProfileIcon from '../../assets/Profile-icon.svg?react';
 import { doc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../../lib/firebase';
 import AvatarCropModal from '../Account/AvatarCropModal';
+import ShortcutsSettings from './ShortcutsSettings';
 
 interface SavedDevice {
   hardware_name: string;
@@ -123,6 +124,8 @@ export default function Settings() {
   // Account State
   const { isLoggedIn, user, logout, reloadUser } = useAuth();
 
+  const [currentTab, setCurrentTab] = useState<'main' | 'shortcuts'>('main');
+
   // Library State
   const [libraryPath, setLibraryPath] = useState<string | null>(localStorage.getItem('hertzsonic_library_path'));
   const [isRescanning, setIsRescanning] = useState(false);
@@ -233,6 +236,10 @@ export default function Settings() {
   const handleHardReload = () => {
     window.location.reload();
   };
+
+  if (currentTab === 'shortcuts') {
+    return <ShortcutsSettings onBack={() => setCurrentTab('main')} />;
+  }
 
   return (
     <div className="settings-page">
@@ -392,6 +399,29 @@ export default function Settings() {
                 >
                   <div className="knob"></div>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Keyboard Shortcuts */}
+        <div className="settings-section">
+          <div className="section-header">
+            <h2 className="section-title">Keyboard Shortcuts</h2>
+          </div>
+          <div className="section-content">
+            <div className="setting-row">
+              <div className="setting-label">
+                <span className="title">Keyboard Shortcuts</span>
+                <span className="desc">Customize hotkeys for playback, seeking, and volume control.</span>
+              </div>
+              <div className="setting-action">
+                <button 
+                  className="secondary-btn" 
+                  onClick={() => setCurrentTab('shortcuts')}
+                >
+                  Configure Shortcuts &rarr;
+                </button>
               </div>
             </div>
           </div>
