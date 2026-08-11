@@ -5,8 +5,6 @@ import IconConnectedDevice from '../../assets/Connected Device.svg?react';
 import IconHome from '../../assets/Nav/Home.svg?react';
 import IconLibrary from '../../assets/Library.svg?react';
 import IconEqualizer from '../../assets/Equalizer.svg?react';
-import IconConvert from '../../assets/Convert File.svg?react';
-import IconCompare from '../../assets/Compare.svg?react';
 import IconLiked from '../../assets/Nav/Liked.svg?react';
 import IconPlaylist from '../../assets/Nav/PlayList.svg?react';
 import IconSettings from '../../assets/Settings.svg?react';

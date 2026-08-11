@@ -118,6 +118,12 @@
         color: $color-secondary-text;
         font-size: 0.9rem;
       }
+
+      .playing-indicator-icon {
+        width: 16px;
+        height: 16px;
+        color: $color-prime; // Assuming the SVG inherits currentColor
+      }
     }
 
     .track-title-col {

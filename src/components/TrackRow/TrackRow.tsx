@@ -1,6 +1,8 @@
 import './TrackRow.scss';
 import { Cloud, Folder, PlusCircle, Heart, MoreVertical } from 'lucide-react';
 import { convertFileSrc } from '@tauri-apps/api/core';
+import Lottie, { LottieRefCurrentProps } from 'lottie-react';
+import playIndicatorAnime from '../../assets/play-indicator-anime.json';
 import { usePlaylists } from '../../context/PlaylistContext';
 import { useQueue } from '../../context/QueueContext';
 import { useState, useRef, useEffect } from 'react';
@@ -49,8 +51,25 @@ export default function TrackRow({
   const [isCreating, setIsCreating] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isPlayerPlaying, setIsPlayerPlaying] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
+  const lottieRef = useRef<LottieRefCurrentProps>(null);
+
+  useEffect(() => {
+    const handlePlayerState = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const playing = customEvent.detail?.isPlaying;
+      setIsPlayerPlaying(playing);
+      if (playing) {
+        lottieRef.current?.play();
+      } else {
+        lottieRef.current?.pause();
+      }
+    };
+    window.addEventListener('player-state-changed', handlePlayerState);
+    return () => window.removeEventListener('player-state-changed', handlePlayerState);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -196,10 +215,21 @@ export default function TrackRow({
 
   return (
     <div className={`track-row ${variant} ${isActive ? 'active' : ''}`} onClick={onClick}>
-      {/* 1. Track Number or Play Icon (Hover State) */}
+      {/* 1. Track Number or Playing Indicator */}
       {variant === 'wide' && trackNumber && (
         <div className="track-number-col">
-          <span className="number">{trackNumber}</span>
+          {isActive ? (
+            <div className="playing-indicator-icon">
+              <Lottie 
+                lottieRef={lottieRef}
+                animationData={playIndicatorAnime} 
+                loop={true} 
+                autoplay={isPlayerPlaying} 
+              />
+            </div>
+          ) : (
+            <span className="number">{trackNumber}</span>
+          )}
         </div>
       )}
 

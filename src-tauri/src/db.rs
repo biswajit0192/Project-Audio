@@ -86,10 +86,15 @@ pub fn ensure_schema(conn: &Connection) -> SqlResult<()> {
         CREATE TABLE IF NOT EXISTS device_nicknames (
             hardware_name TEXT PRIMARY KEY,
             nickname TEXT NOT NULL,
+            threshold_db REAL DEFAULT -17.0,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
         "
     )?;
+    
+    // Safely add column for existing databases if it doesn't exist
+    let _ = conn.execute("ALTER TABLE device_nicknames ADD COLUMN threshold_db REAL DEFAULT -17.0", params![]);
+    
     Ok(())
 }
 
@@ -325,17 +330,18 @@ pub fn delete_track(app: tauri::AppHandle, file_path: String) -> Result<(), Stri
 pub struct SavedDevice {
     pub hardware_name: String,
     pub nickname: String,
+    pub threshold_db: f64,
 }
 
 #[tauri::command]
-pub fn set_device_nickname(app: tauri::AppHandle, hardware_name: String, nickname: String) -> Result<(), String> {
+pub fn set_device_nickname(app: tauri::AppHandle, hardware_name: String, nickname: String, threshold_db: f64) -> Result<(), String> {
     let db_path = get_db_path(&app);
     let conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
     ensure_schema(&conn).map_err(|e| e.to_string())?;
 
     conn.execute(
-        "INSERT OR REPLACE INTO device_nicknames (hardware_name, nickname, updated_at) VALUES (?1, ?2, CURRENT_TIMESTAMP)",
-        params![hardware_name, nickname],
+        "INSERT OR REPLACE INTO device_nicknames (hardware_name, nickname, threshold_db, updated_at) VALUES (?1, ?2, ?3, CURRENT_TIMESTAMP)",
+        params![hardware_name, nickname, threshold_db],
     ).map_err(|e| e.to_string())?;
 
     Ok(())
@@ -347,11 +353,12 @@ pub fn get_saved_devices(app: tauri::AppHandle) -> Result<Vec<SavedDevice>, Stri
     let conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
     ensure_schema(&conn).map_err(|e| e.to_string())?;
 
-    let mut stmt = conn.prepare("SELECT hardware_name, nickname FROM device_nicknames ORDER BY updated_at DESC").map_err(|e| e.to_string())?;
+    let mut stmt = conn.prepare("SELECT hardware_name, nickname, threshold_db FROM device_nicknames ORDER BY updated_at DESC").map_err(|e| e.to_string())?;
     let device_iter = stmt.query_map([], |row| {
         Ok(SavedDevice {
             hardware_name: row.get(0)?,
             nickname: row.get(1)?,
+            threshold_db: row.get(2).unwrap_or(-17.0),
         })
     }).map_err(|e| e.to_string())?;
 

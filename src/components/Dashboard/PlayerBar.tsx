@@ -28,6 +28,7 @@ export default function PlayerBar() {
   const isPlayingRef = useRef(isPlaying);
   useEffect(() => {
     isPlayingRef.current = isPlaying;
+    window.dispatchEvent(new CustomEvent('player-state-changed', { detail: { isPlaying } }));
   }, [isPlaying]);
 
   const [playingTrackPath, setPlayingTrackPath] = useState<string | null>(currentTrack?.path || null);
@@ -72,6 +73,10 @@ export default function PlayerBar() {
   const [audioDevices, setAudioDevices] = useState<{ id: string, name: string, is_default: boolean }[]>([]);
 
   const promptHighVolume = (currentVolume: number): Promise<boolean> => {
+    const warningEnabled = localStorage.getItem('hertzsonic_high_volume_warning') !== 'false';
+    if (!warningEnabled) {
+      return Promise.resolve(true);
+    }
     return new Promise((resolve) => {
       setVolumeWarning({
         show: true,
@@ -194,16 +199,56 @@ export default function PlayerBar() {
     };
   }, [isPlaying, isDragging]);
 
+  const checkHighVolumeWarning = async (currentVolume: number): Promise<boolean> => {
+    const isWarningEnabled = localStorage.getItem('hertzsonic_high_volume_warning') !== 'false';
+    console.log('[Volume Check] isWarningEnabled:', isWarningEnabled, 'currentVolume:', currentVolume);
+    if (!isWarningEnabled) return true;
+
+    const mode = localStorage.getItem('hertzsonic_volume_protection_mode') || 'global';
+    let thresholdDb = -17.0;
+
+    console.log('[Volume Check] mode:', mode);
+    if (mode === 'dynamic') {
+      try {
+        const device = await invoke<{ threshold_db: number } | null>('get_current_audio_device');
+        console.log('[Volume Check] get_current_audio_device result:', device);
+        if (device) {
+          thresholdDb = device.threshold_db;
+        } else {
+          const savedGlobal = localStorage.getItem('hertzsonic_high_volume_threshold');
+          thresholdDb = savedGlobal ? parseFloat(savedGlobal) : -17.0;
+        }
+      } catch (err) {
+        console.error('[Volume Check] backend error:', err);
+        const savedGlobal = localStorage.getItem('hertzsonic_high_volume_threshold');
+        thresholdDb = savedGlobal ? parseFloat(savedGlobal) : -17.0;
+      }
+    } else {
+      const savedGlobal = localStorage.getItem('hertzsonic_high_volume_threshold');
+      thresholdDb = savedGlobal ? parseFloat(savedGlobal) : -17.0;
+    }
+
+    console.log('[Volume Check] final thresholdDb:', thresholdDb);
+
+    if (currentVolume > thresholdDb) {
+      console.log('[Volume Check] Volume > threshold! Prompting...');
+      if (isPromptingRef.current) return false;
+      isPromptingRef.current = true;
+      const isConfirmed = await promptHighVolume(currentVolume);
+      isPromptingRef.current = false;
+      return isConfirmed;
+    }
+
+    return true;
+  };
+
   useEffect(() => {
     const playNewTrack = async () => {
       if (currentTrack && currentTrack.path !== playingTrackPath) {
-        const currentVolume = volumeDbRef.current;
-        if (!isPlayingRef.current && currentVolume > -17.0) {
-          if (isPromptingRef.current) return;
-          isPromptingRef.current = true;
-          const isConfirmed = await promptHighVolume(currentVolume);
-          isPromptingRef.current = false;
-          if (!isConfirmed) return;
+        if (!isPlayingRef.current) {
+          const currentVolume = volumeDbRef.current;
+          const allowed = await checkHighVolumeWarning(currentVolume);
+          if (!allowed) return;
         }
 
         try {
@@ -250,13 +295,8 @@ export default function PlayerBar() {
         setIsPlaying(false);
       } else {
         const currentVolume = volumeDbRef.current;
-        if (currentVolume > -17.0) {
-          if (isPromptingRef.current) return;
-          isPromptingRef.current = true;
-          const isConfirmed = await promptHighVolume(currentVolume);
-          isPromptingRef.current = false;
-          if (!isConfirmed) return;
-        }
+        const allowed = await checkHighVolumeWarning(currentVolume);
+        if (!allowed) return;
 
         if (playingTrackPath === currentTrack.path && isLoadedInBackend.current) {
           await invoke('resume_audio');

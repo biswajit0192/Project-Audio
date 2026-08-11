@@ -121,6 +121,40 @@
         }
       }
     }
+
+    .numeric-input-wrapper {
+      display: flex;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      padding: 6px 12px;
+      gap: 4px;
+      width: fit-content;
+
+      .prefix, .suffix {
+        color: rgba(255, 255, 255, 0.5);
+        font-size: 13px;
+        user-select: none;
+      }
+
+      .numeric-input {
+        background: transparent;
+        border: none;
+        color: #fff;
+        font-size: 14px;
+        font-family: monospace;
+        width: 40px;
+        text-align: center;
+        box-shadow: none;
+        padding: 0;
+        outline: none;
+
+        &::placeholder {
+          color: rgba(255, 255, 255, 0.3);
+        }
+      }
+    }
   }
 
   .modal-footer {

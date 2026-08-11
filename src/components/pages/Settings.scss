@@ -21,20 +21,18 @@
   }
 
   .settings-section {
+    margin-bottom: 24px;
     display: flex;
     flex-direction: column;
-    gap: $spacing-m;
 
     .section-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: $spacing-m;
-      padding-bottom: 0;
-      border-bottom: none;
+      margin-bottom: 16px;
 
       .section-title {
-        font-size: $font-size-headings;
+        font-size: 1.125rem;
         font-weight: 600;
         color: #fff;
         margin: 0;
@@ -44,17 +42,22 @@
     .section-content {
       display: flex;
       flex-direction: column;
+      
+      > .setting-group + .setting-group,
+      > .setting-row + .setting-row,
+      > .setting-row + .setting-group,
+      > .setting-group + .setting-row {
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+      }
 
       .setting-row {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 16px 0;
-        border-bottom: 1px solid $color-dark-gray;
-
-        &:last-child {
-          border-bottom: none;
-        }
+        padding: 0;
+        border: none;
 
         .setting-label {
           display: flex;
@@ -80,6 +83,7 @@
         .setting-action {
           display: flex;
           align-items: center;
+          justify-content: flex-end;
           gap: 12px;
 
           &.flex-actions {
@@ -104,6 +108,60 @@
               cursor: wait;
               background: rgba(255, 255, 255, 0.1) !important;
               color: rgba(255, 255, 255, 0.5) !important;
+            }
+          }
+
+          .numeric-input-wrapper {
+            display: flex;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            padding: 6px 12px;
+            gap: 4px;
+
+            .prefix, .suffix {
+              color: rgba(255, 255, 255, 0.5);
+              font-size: 13px;
+              user-select: none;
+            }
+
+            .numeric-input {
+              background: transparent;
+              border: none;
+              color: #fff;
+              font-size: 14px;
+              font-family: monospace;
+              width: 40px;
+              text-align: center;
+              box-shadow: none;
+              padding: 0;
+              outline: none;
+
+              &::placeholder {
+                color: rgba(255, 255, 255, 0.3);
+              }
+            }
+          }
+
+          .styled-select {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            color: #fff;
+            padding: 8px 12px;
+            font-size: 14px;
+            outline: none;
+            cursor: pointer;
+            transition: all 0.2s;
+
+            &:hover {
+              background: rgba(255, 255, 255, 0.08);
+            }
+
+            option {
+              background: #1a1a1a;
+              color: #fff;
             }
           }
 
@@ -173,10 +231,10 @@
           .badge {
             background: rgba(255, 255, 255, 0.1);
             color: rgba(255, 255, 255, 0.7);
-            padding: 4px 12px;
-            border-radius: 12px;
+            padding: 6px 14px;
+            border-radius: 20px;
             font-size: 12px;
-            font-weight: 500;
+            font-weight: 600;
 
             &.active {
               background: rgba(229, 57, 53, 0.15);
@@ -184,9 +242,9 @@
             }
 
             &.inactive {
-              background: transparent;
-              border: 1px solid rgba(255, 255, 255, 0.2);
-              color: rgba(255, 255, 255, 0.4);
+              background: rgba(255, 255, 255, 0.08);
+              border: none;
+              color: rgba(255, 255, 255, 0.5);
             }
           }
         }
