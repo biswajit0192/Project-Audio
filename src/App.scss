@@ -1,11 +1,9 @@
 @use './variables' as *;
 @import url('https://fonts.googleapis.com/css2?family=Encode+Sans+Expanded:wght@400;600;700&family=Red+Hat+Display:wght@400;500;600;700&display=swap');
 
-.logo.vite:hover {
-}
+.logo.vite:hover {}
 
-.logo.react:hover {
-}
+.logo.react:hover {}
 
 :root {
   --font-heading: 'Encode Sans Expanded', sans-serif;
@@ -50,8 +48,7 @@
   transition: 0.75s;
 }
 
-.logo.tauri:hover {
-}
+.logo.tauri:hover {}
 
 .row {
   display: flex;
@@ -81,7 +78,7 @@ button {
   font-weight: 500;
   font-family: inherit;
   color: #0f0f0f;
-  background-color: #ffffff;
+  background-color: $color-button-back-gray;
   transition: border-color 0.25s;
 }
 
@@ -123,7 +120,7 @@ button {
 
   input,
   button {
-    color: #ffffff;
+    color: $color-button-back-gray;
     background-color: #0f0f0f98;
   }
 
@@ -207,7 +204,7 @@ body,
     background: transparent;
     border: none;
     outline: none;
-    color: #ffffff;
+    color: $color-button-back-gray;
     font-size: $font-size-base;
     font-family: inherit;
     width: 100%;
@@ -235,7 +232,7 @@ body,
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   -webkit-app-region: no-drag;
-  color: #ffffff;
+  color: $color-prime-text;
   box-shadow: none;
   overflow: hidden;
 
@@ -261,7 +258,6 @@ body,
   .refresh-icon {
     width: 14px;
     height: 14px;
-    opacity: 0.8;
 
     &.spinning {
       animation: spin 1s linear infinite;
@@ -343,13 +339,13 @@ body,
 
 .titlebar-btn:hover {
   background-color: rgba(255, 255, 255, 0.12);
-  color: #ffffff;
+  color: $color-button-back-gray;
   border-color: transparent;
 }
 
 .titlebar-btn.close-btn:hover {
   background-color: #e81123;
-  color: #ffffff;
+  color: $color-button-back-gray;
 }
 
 /* Custom Scrollbar */

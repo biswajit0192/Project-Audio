@@ -69,6 +69,10 @@ export default function TrackRow({
       }
     };
     window.addEventListener('player-state-changed', handlePlayerState);
+    
+    // Request current state immediately on mount
+    window.dispatchEvent(new Event('request-player-state'));
+
     return () => window.removeEventListener('player-state-changed', handlePlayerState);
   }, []);
 

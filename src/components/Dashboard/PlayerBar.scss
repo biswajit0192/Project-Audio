@@ -120,8 +120,8 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: transform 0.1s, opacity 0.2s;
-      opacity: $button-inactive;
+      transition: transform 0.1s;
+      color: $color-prime-text;
 
       svg,
       img {
@@ -129,13 +129,7 @@
         height: auto;
       }
 
-      &:hover,
-      &.active {
-        opacity: $button-active;
-      }
-
       &.play-btn {
-        opacity: $button-active;
         transition: transform 0.2s;
 
         svg,
@@ -260,10 +254,9 @@
       border: none;
       cursor: pointer;
       padding: 0;
-      opacity: $button-inactive;
-      transition: opacity 0.2s;
       display: flex;
       align-items: center;
+      color: $color-prime-text;
 
       svg,
       img {
@@ -271,21 +264,9 @@
         height: auto;
       }
 
-      &:hover,
-      &.active {
-        opacity: $button-active;
-      }
-
       &.queue-btn {
         &.active {
-          opacity: 1;
-        }
-
-        svg,
-        img {
-          // Red color for the active queue icon to match design
-          // If the SVG isn't red already, this filter will color it:
-
+          color: $color-prime;
         }
       }
     }
@@ -303,7 +284,7 @@
 
       .volume-icon {
         width: 16px;
-        opacity: 0.7;
+        color: $color-prime-text;
       }
 
       .volume-track {
@@ -408,8 +389,8 @@
 
   .device-list-popup {
     position: absolute;
-    bottom: 100px;
-    right: 2%;
+    bottom: 70px;
+    right: 0;
     width: 280px;
     background: rgba(20, 20, 22, 0.95);
     backdrop-filter: blur(16px);

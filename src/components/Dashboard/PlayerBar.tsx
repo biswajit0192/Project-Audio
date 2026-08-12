@@ -31,6 +31,14 @@ export default function PlayerBar() {
     window.dispatchEvent(new CustomEvent('player-state-changed', { detail: { isPlaying } }));
   }, [isPlaying]);
 
+  useEffect(() => {
+    const handleRequest = () => {
+      window.dispatchEvent(new CustomEvent('player-state-changed', { detail: { isPlaying: isPlayingRef.current } }));
+    };
+    window.addEventListener('request-player-state', handleRequest);
+    return () => window.removeEventListener('request-player-state', handleRequest);
+  }, []);
+
   const [playingTrackPath, setPlayingTrackPath] = useState<string | null>(currentTrack?.path || null);
   const isLoadedInBackend = useRef(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -147,6 +155,21 @@ export default function PlayerBar() {
 
   const [showDeviceList, setShowDeviceList] = useState(false);
   const [audioDevices, setAudioDevices] = useState<{ id: string, name: string, is_default: boolean }[]>([]);
+  const deviceListRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (deviceListRef.current && !deviceListRef.current.contains(event.target as Node)) {
+        setShowDeviceList(false);
+      }
+    };
+    if (showDeviceList) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showDeviceList]);
 
   const promptHighVolume = (currentVolume: number): Promise<boolean> => {
     const warningEnabled = localStorage.getItem('hertzsonic_high_volume_warning') !== 'false';
@@ -566,7 +589,7 @@ export default function PlayerBar() {
       <div className="player-right">
 
         <div className="right-controls">
-          <button className="ext-control-btn queue-btn" title="Queue">
+          <button className="ext-control-btn queue-btn active" title="Queue">
             <IconQueue />
           </button>
           <button className="ext-control-btn" title="Equalizer">
@@ -610,31 +633,33 @@ export default function PlayerBar() {
           <button className="ext-control-btn" title="Lock">
             <IconLock />
           </button>
-          <button className="ext-control-btn" title="Headphones output" onClick={handleDeviceListClick}>
-            <IconHeadphones />
-          </button>
+          <div className="device-list-wrapper" ref={deviceListRef} style={{ position: 'relative' }}>
+            <button className="ext-control-btn" title="Headphones output" onClick={handleDeviceListClick}>
+              <IconHeadphones />
+            </button>
 
-          {showDeviceList && (
-            <div className="device-list-popup">
-              <div className="device-list-header">
-                Select Playback Device
-              </div>
-              <div className="device-list-content">
-                {audioDevices.map(device => (
-                  <div
-                    key={device.id}
-                    className={`device-item ${device.is_default ? 'default' : ''}`}
-                    onClick={() => handleDeviceSelect(device.id)}
-                  >
-                    <div className="device-icon">
-                      {device.is_default ? <div className="active-dot" /> : null}
+            {showDeviceList && (
+              <div className="device-list-popup">
+                <div className="device-list-header">
+                  Select Playback Device
+                </div>
+                <div className="device-list-content">
+                  {audioDevices.map(device => (
+                    <div
+                      key={device.id}
+                      className={`device-item ${device.is_default ? 'default' : ''}`}
+                      onClick={() => handleDeviceSelect(device.id)}
+                    >
+                      <div className="device-icon">
+                        {device.is_default ? <div className="active-dot" /> : null}
+                      </div>
+                      <span className="device-name" title={device.name}>{device.name}</span>
                     </div>
-                    <span className="device-name" title={device.name}>{device.name}</span>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
       </div>
