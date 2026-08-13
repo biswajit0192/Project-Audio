@@ -24,4 +24,5 @@ export interface Track {
   bitDepth: number | null;
   bitrate: number | null;
   dateAdded?: number;
+  waveformData?: number[];
 }

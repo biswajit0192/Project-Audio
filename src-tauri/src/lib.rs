@@ -321,7 +321,7 @@ pub fn run() {
             greet, scan_for_music, get_track_metadata, play_audio, pause_audio, resume_audio, get_audio_position, seek_audio, reveal_track_in_explorer, volume::set_system_volume, volume::get_system_volume, volume::get_audio_devices, volume::switch_audio_device, volume::get_current_audio_device,
             db::save_track_to_cache, db::get_cached_library, db::cleanup_ghost_tracks,
             db::create_playlist, db::get_playlists, db::delete_playlist, db::add_track_to_playlist, db::remove_track_from_playlist, db::get_playlist_tracks, db::delete_track, db::update_playlist_cover,
-            db::set_device_nickname, db::get_saved_devices, db::delete_device_nickname
+            db::set_device_nickname, db::get_saved_devices, db::delete_device_nickname, db::get_or_generate_waveform
         ])
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()

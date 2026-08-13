@@ -42,6 +42,8 @@ export default function PlayerBar() {
   const [playingTrackPath, setPlayingTrackPath] = useState<string | null>(currentTrack?.path || null);
   const isLoadedInBackend = useRef(false);
   const [currentTime, setCurrentTime] = useState(0);
+  const [waveformData, setWaveformData] = useState<number[]>([]);
+  const [isWaveformLoading, setIsWaveformLoading] = useState(false);
   const currentTimeRef = useRef(currentTime);
   useEffect(() => {
     currentTimeRef.current = currentTime;
@@ -54,6 +56,29 @@ export default function PlayerBar() {
   const [prevVolumeDb, setPrevVolumeDb] = useState<number>(-4.0);
   const isVolumeDraggingRef = useRef(false);
   const volumeTrackRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const fetchWaveform = async () => {
+      if (currentTrack) {
+        setIsWaveformLoading(true);
+        try {
+          if (currentTrack.waveformData) {
+            setWaveformData(currentTrack.waveformData);
+          } else {
+            const data: number[] = await invoke('get_or_generate_waveform', { filePath: currentTrack.path });
+            setWaveformData(data);
+          }
+        } catch (e) {
+          console.error("Failed to load waveform:", e);
+          setWaveformData([]);
+        } finally {
+          setIsWaveformLoading(false);
+        }
+      }
+    };
+
+    fetchWaveform();
+  }, [currentTrack]);
 
   const volumeDbRef = useRef(volumeDb);
   useEffect(() => {
@@ -574,12 +599,45 @@ export default function PlayerBar() {
             ref={progressTrackRef}
             onMouseDown={handleSeekStart}
           >
-            <div
-              className="progress-fill"
-              style={{ width: `${currentTrack ? (currentTime / currentTrack.durationSecs) * 100 : 0}%` }}
+            <svg 
+              className={`waveform-scrubber ${isWaveformLoading || waveformData.length !== 100 ? 'loading' : 'loaded'}`}
+              style={{ width: '100%', height: '100%', display: 'block' }}
             >
-              <div className="progress-thumb" />
-            </div>
+              {(() => {
+                const hasData = waveformData.length === 100;
+                const playedRatio = currentTrack && currentTrack.durationSecs > 0 
+                  ? (currentTime / currentTrack.durationSecs) 
+                  : 0;
+
+                const renderBars = () => Array.from({ length: 100 }).map((_, i) => {
+                  const showData = hasData && !isWaveformLoading;
+                  const amp = showData ? waveformData[i] : 0;
+                  const height = showData ? Math.max(8, amp * 100) : 4; // 4% height for dots
+                  const y = (100 - height) / 2;
+                  const isPlayed = i / 100 <= playedRatio;
+                  
+                  return (
+                    <rect
+                      key={i}
+                      x={`${i + 0.2}%`}
+                      y={`${y}%`}
+                      width="0.6%"
+                      height={`${height}%`}
+                      rx="2"
+                      ry="2"
+                      className={showData ? (isPlayed ? "bar-played entrance" : "bar-unplayed entrance") : "bar-loading"}
+                      style={showData ? { animationDelay: `${i * 0.005}s` } : undefined}
+                    />
+                  );
+                });
+
+                return (
+                  <g className="waveform-group">
+                    {renderBars()}
+                  </g>
+                );
+              })()}
+            </svg>
           </div>
           <span className="time total-time">{currentTrack ? formatDuration(currentTrack.durationSecs) : '0:00'}</span>
         </div>

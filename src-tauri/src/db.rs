@@ -49,6 +49,19 @@ pub fn ensure_schema(conn: &Connection) -> SqlResult<()> {
         let _ = conn.execute("ALTER TABLE music_tracks ADD COLUMN date_added INTEGER DEFAULT 0", []);
     }
 
+    let has_waveform_data = conn.query_row(
+        "SELECT COUNT(*) FROM pragma_table_info('music_tracks') WHERE name = 'waveform_data'",
+        [],
+        |row| row.get::<_, i32>(0)
+    ).unwrap_or(0) > 0;
+
+    if !has_waveform_data {
+        let _ = conn.execute("ALTER TABLE music_tracks ADD COLUMN waveform_data TEXT", []);
+    }
+
+    // [TEMPORARY CLEANUP] Clear all cached waveform data
+    let _ = conn.execute("UPDATE music_tracks SET waveform_data = NULL", []);
+
     conn.execute_batch(
         "
         CREATE TABLE IF NOT EXISTS auth_users (
@@ -69,6 +82,7 @@ pub fn ensure_schema(conn: &Connection) -> SqlResult<()> {
             bit_depth INTEGER,
             bitrate INTEGER,
             cover_art_path TEXT,
+            waveform_data TEXT,
             date_added INTEGER DEFAULT 0
         );
         CREATE TABLE IF NOT EXISTS playlists (
@@ -437,4 +451,135 @@ pub fn delete_device_nickname(app: tauri::AppHandle, hardware_name: String) -> R
     ).map_err(|e| e.to_string())?;
 
     Ok(())
+}
+
+#[tauri::command]
+pub async fn get_or_generate_waveform(app: tauri::AppHandle, file_path: String) -> Result<Vec<f32>, String> {
+    let db_path = get_db_path(&app);
+    let conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
+
+    {
+        let mut stmt = conn.prepare("SELECT waveform_data FROM music_tracks WHERE file_path = ?").map_err(|e| e.to_string())?;
+        
+        let mut rows = stmt.query(params![file_path]).map_err(|e| e.to_string())?;
+        
+        if let Some(row) = rows.next().map_err(|e| e.to_string())? {
+            if let Ok(Some(data_str)) = row.get::<_, Option<String>>(0) {
+                if let Ok(data) = serde_json::from_str::<Vec<f32>>(&data_str) {
+                    return Ok(data);
+                }
+            }
+        }
+    }
+    
+    let waveform = match generate_waveform_for_file(&file_path) {
+        Ok(w) => w,
+        Err(e) => return Err(e),
+    };
+    let serialized = serde_json::to_string(&waveform).map_err(|e| e.to_string())?;
+    
+    conn.execute(
+        "UPDATE music_tracks SET waveform_data = ? WHERE file_path = ?",
+        params![serialized, file_path],
+    ).map_err(|e| e.to_string())?;
+    
+    Ok(waveform)
+}
+
+fn generate_waveform_for_file(path: &str) -> Result<Vec<f32>, String> {
+    use std::fs::File;
+    use symphonia::core::io::MediaSourceStream;
+    use symphonia::core::probe::Hint;
+    use symphonia::core::audio::{AudioBufferRef, Signal};
+    use symphonia::core::errors::Error;
+
+    let file = Box::new(File::open(path).map_err(|e| e.to_string())?);
+    let mss = MediaSourceStream::new(file, Default::default());
+    let mut hint = Hint::new();
+    if let Some(ext) = std::path::Path::new(path).extension().and_then(|s| s.to_str()) {
+        hint.with_extension(ext);
+    }
+
+    let probed = symphonia::default::get_probe()
+        .format(&hint, mss, &Default::default(), &Default::default())
+        .map_err(|e| format!("Failed to probe audio: {}", e))?;
+
+    let mut format = probed.format;
+    let track = format.default_track().ok_or("No default track")?;
+    let track_id = track.id;
+
+    let total_frames = track.codec_params.n_frames.unwrap_or(44100 * 180) as usize;
+    let num_buckets = 100;
+    let mut buckets = vec![0.0f32; num_buckets];
+
+    let mut decoder = symphonia::default::get_codecs()
+        .make(&track.codec_params, &Default::default())
+        .map_err(|e| format!("Failed to create decoder: {}", e))?;
+
+    // Calculate sample intervals based on total tracks duration
+    let track_duration = track.codec_params.time_base
+        .map(|tb| tb.calc_time(total_frames as u64))
+        .unwrap_or(symphonia::core::units::Time { seconds: 180, frac: 0.0 });
+    
+    let interval_secs = (track_duration.seconds as f64 / num_buckets as f64).max(0.5);
+
+    for i in 0..num_buckets {
+        let seek_time = i as f64 * interval_secs;
+        let seek_to = symphonia::core::formats::SeekTo::Time {
+            time: symphonia::core::units::Time::new(seek_time as u64, seek_time.fract()),
+            track_id: Some(track_id),
+        };
+
+        // Physically jump the reader directly to the timestamp checkpoint
+        if format.seek(symphonia::core::formats::SeekMode::Coarse, seek_to).is_ok() {
+            if let Ok(packet) = format.next_packet() {
+                if let Ok(decoded) = decoder.decode(&packet) {
+                    // Pull the absolute max amplitude from channel 0 for this snapshot packet
+                    match decoded {
+                        AudioBufferRef::S32(buf) => {
+                            if let Some(&s) = buf.chan(0).iter().max_by_key(|&&v| v.abs()) {
+                                buckets[i] = (s as f32 / 2147483648.0).abs();
+                            }
+                        }
+                        AudioBufferRef::S24(buf) => {
+                            if let Some(s) = buf.chan(0).iter().max_by_key(|&v| v.0.abs()) {
+                                buckets[i] = (s.0 as f32 / 8388608.0).abs();
+                            }
+                        }
+                        AudioBufferRef::S16(buf) => {
+                            if let Some(&s) = buf.chan(0).iter().max_by_key(|&&v| v.abs()) {
+                                buckets[i] = (s as f32 / 32768.0).abs();
+                            }
+                        }
+                        AudioBufferRef::F32(buf) => {
+                            if let Some(&s) = buf.chan(0).iter().max_by(|&&a, &&b| a.abs().total_cmp(&b.abs())) {
+                                buckets[i] = s.abs();
+                            }
+                        }
+                        AudioBufferRef::F64(buf) => {
+                            if let Some(&s) = buf.chan(0).iter().max_by(|&&a, &&b| a.abs().total_cmp(&b.abs())) {
+                                buckets[i] = s.abs() as f32;
+                            }
+                        }
+                        AudioBufferRef::U8(buf) => {
+                            if let Some(&s) = buf.chan(0).iter().max_by_key(|&&v| (v as i32 - 128).abs()) {
+                                buckets[i] = ((s as f32 - 128.0) / 128.0).abs();
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+    }
+
+    // Normalize peaks across the 100 buckets
+    let global_max = buckets.iter().cloned().fold(0.0f32, f32::max);
+    if global_max > 0.0 {
+        for b in &mut buckets {
+            *b = (*b / global_max).max(0.08); // Ensure min height for aesthetic consistency
+        }
+    }
+
+    Ok(buckets)
 }
