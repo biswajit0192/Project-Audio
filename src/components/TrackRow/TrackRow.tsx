@@ -121,11 +121,19 @@ export default function TrackRow({
   };
 
   const audioBadge = (() => {
-    if ((sampleRate && sampleRate >= 88200) || (bitDepth && bitDepth > 16)) {
-      return 'HR'; // Hi-Res
-    } else if (bitDepth === 16 || (bitrate && bitrate >= 320)) {
-      return 'SQ'; // Standard Quality
+    const sr = sampleRate || 0;
+    const bd = bitDepth || 0;
+
+    // Hi-Res Audio (24-bit+ or >= 88.2kHz)
+    if (bd >= 24 || sr >= 88200) {
+      return 'HR';
     }
+
+    // Standard Quality (16-bit, CD Quality, or standard 44.1kHz / 48kHz lossy/lossless)
+    if (bd === 16 || sr >= 44100 || (bitrate && bitrate > 0)) {
+      return 'SQ';
+    }
+
     return null;
   })();
 

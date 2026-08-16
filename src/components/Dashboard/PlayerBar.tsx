@@ -19,11 +19,14 @@ import IconEq from '../../assets/playing-tab-icons/Equalizer.svg?react';
 import IconVolume from '../../assets/playing-tab-icons/Volume.svg?react';
 import IconMute from '../../assets/playing-tab-icons/mute.svg?react';
 import IconLock from '../../assets/playing-tab-icons/Lock.svg?react';
+import IconLockOpen from '../../assets/playing-tab-icons/lock-open.svg?react';
 import IconHeadphones from '../../assets/playing-tab-icons/Headphones.svg?react';
 import { useQueue } from '../../context/QueueContext';
+import { usePlaylists } from '../../context/PlaylistContext';
 
 export default function PlayerBar() {
   const { currentTrack, nextTrack, previousTrack, isShuffled, toggleShuffle, repeatMode, toggleRepeat } = useQueue();
+  const { favoritePaths, toggleFavorite } = usePlaylists();
   const [isPlaying, setIsPlaying] = useState(false);
   const isPlayingRef = useRef(isPlaying);
   useEffect(() => {
@@ -44,6 +47,18 @@ export default function PlayerBar() {
   const [currentTime, setCurrentTime] = useState(0);
   const [waveformData, setWaveformData] = useState<number[]>([]);
   const [isWaveformLoading, setIsWaveformLoading] = useState(false);
+
+  const [useWaveformSeekbar, setUseWaveformSeekbar] = useState(() => {
+    return localStorage.getItem('hertzsonic_use_waveform') !== 'false';
+  });
+
+  useEffect(() => {
+    const handleSettingChange = () => {
+      setUseWaveformSeekbar(localStorage.getItem('hertzsonic_use_waveform') !== 'false');
+    };
+    window.addEventListener('waveform-setting-changed', handleSettingChange);
+    return () => window.removeEventListener('waveform-setting-changed', handleSettingChange);
+  }, []);
   const currentTimeRef = useRef(currentTime);
   useEffect(() => {
     currentTimeRef.current = currentTime;
@@ -56,6 +71,9 @@ export default function PlayerBar() {
   const [prevVolumeDb, setPrevVolumeDb] = useState<number>(-4.0);
   const isVolumeDraggingRef = useRef(false);
   const volumeTrackRef = useRef<HTMLDivElement>(null);
+
+  const [isExclusive, setIsExclusive] = useState(false);
+  const [isSwitchingMode, setIsSwitchingMode] = useState(false);
 
   useEffect(() => {
     const fetchWaveform = async () => {
@@ -555,8 +573,21 @@ export default function PlayerBar() {
                 <span className="audio-quality-detail">{audioQualityStr}</span>
               )}
             </div>
-            <button className="like-btn" title="Like">
-              <Heart size={20} strokeWidth={2} className="heart-icon" />
+            <button 
+              className={`like-btn ${currentTrack.path && favoritePaths.has(currentTrack.path) ? 'is-fav' : ''}`} 
+              title="Toggle Favorite"
+              onClick={async () => {
+                if (currentTrack.path) {
+                  await toggleFavorite(currentTrack.path);
+                }
+              }}
+            >
+              <Heart 
+                size={20} 
+                strokeWidth={2} 
+                className="heart-icon" 
+                fill={currentTrack.path && favoritePaths.has(currentTrack.path) ? 'currentColor' : 'none'} 
+              />
             </button>
           </div>
         ) : (
@@ -599,45 +630,54 @@ export default function PlayerBar() {
             ref={progressTrackRef}
             onMouseDown={handleSeekStart}
           >
-            <svg 
-              className={`waveform-scrubber ${isWaveformLoading || waveformData.length !== 100 ? 'loading' : 'loaded'}`}
-              style={{ width: '100%', height: '100%', display: 'block' }}
-            >
-              {(() => {
-                const hasData = waveformData.length === 100;
-                const playedRatio = currentTrack && currentTrack.durationSecs > 0 
-                  ? (currentTime / currentTrack.durationSecs) 
-                  : 0;
+            {useWaveformSeekbar ? (
+              <svg 
+                className={`waveform-scrubber ${isWaveformLoading || waveformData.length !== 100 ? 'loading' : 'loaded'}`}
+                style={{ width: '100%', height: '100%', display: 'block' }}
+              >
+                {(() => {
+                  const hasData = waveformData.length === 100;
+                  const playedRatio = currentTrack && currentTrack.durationSecs > 0 
+                    ? (currentTime / currentTrack.durationSecs) 
+                    : 0;
 
-                const renderBars = () => Array.from({ length: 100 }).map((_, i) => {
-                  const showData = hasData && !isWaveformLoading;
-                  const amp = showData ? waveformData[i] : 0;
-                  const height = showData ? Math.max(8, amp * 100) : 4; // 4% height for dots
-                  const y = (100 - height) / 2;
-                  const isPlayed = i / 100 <= playedRatio;
-                  
+                  const renderBars = () => Array.from({ length: 100 }).map((_, i) => {
+                    const showData = hasData && !isWaveformLoading;
+                    const amp = showData ? waveformData[i] : 0;
+                    const height = showData ? Math.max(8, amp * 100) : 4; // 4% height for dots
+                    const y = (100 - height) / 2;
+                    const isPlayed = i / 100 <= playedRatio;
+                    
+                    return (
+                      <rect
+                        key={i}
+                        x={`${i + 0.2}%`}
+                        y={`${y}%`}
+                        width="0.6%"
+                        height={`${height}%`}
+                        rx="2"
+                        ry="2"
+                        className={showData ? (isPlayed ? "bar-played entrance" : "bar-unplayed entrance") : "bar-loading"}
+                        style={showData ? { animationDelay: `${i * 0.005}s` } : undefined}
+                      />
+                    );
+                  });
+
                   return (
-                    <rect
-                      key={i}
-                      x={`${i + 0.2}%`}
-                      y={`${y}%`}
-                      width="0.6%"
-                      height={`${height}%`}
-                      rx="2"
-                      ry="2"
-                      className={showData ? (isPlayed ? "bar-played entrance" : "bar-unplayed entrance") : "bar-loading"}
-                      style={showData ? { animationDelay: `${i * 0.005}s` } : undefined}
-                    />
+                    <g className="waveform-group">
+                      {renderBars()}
+                    </g>
                   );
-                });
-
-                return (
-                  <g className="waveform-group">
-                    {renderBars()}
-                  </g>
-                );
-              })()}
-            </svg>
+                })()}
+              </svg>
+            ) : (
+              <div 
+                className="progress-fill" 
+                style={{ width: `${currentTrack && currentTrack.durationSecs > 0 ? (currentTime / currentTrack.durationSecs) * 100 : 0}%` }}
+              >
+                <div className="progress-thumb" />
+              </div>
+            )}
           </div>
           <span className="time total-time">{currentTrack ? formatDuration(currentTrack.durationSecs) : '0:00'}</span>
         </div>
@@ -688,8 +728,33 @@ export default function PlayerBar() {
             </div>
           </div>
 
-          <button className="ext-control-btn" title="Lock">
-            <IconLock />
+          <button 
+            className={`ext-control-btn ${isExclusive ? 'active' : ''}`} 
+            title={isExclusive ? "Exclusive Mode (Bit-Perfect DAC Lock Active)" : "Shared Mode (System Audio Enabled)"}
+            onClick={async (e) => {
+              e.stopPropagation();
+              if (isSwitchingMode) return;
+              setIsSwitchingMode(true);
+              console.log("[UI Audio Lock] Toggle clicked. Current mode:", isExclusive ? "Exclusive" : "Shared", "| isPlaying:", isPlayingRef.current);
+              console.log("[UI Audio Lock] Awaiting backend stream swap...");
+              try {
+                const newState = !isExclusive;
+                const result = await invoke<boolean>('set_exclusive_mode', { 
+                  enabled: newState,
+                  isPlaying: isPlayingRef.current,
+                  currentPosSecs: currentTimeRef.current
+                });
+                setIsExclusive(result);
+                console.log("[UI Audio Lock] Mode switch complete! Active mode:", result ? "Exclusive (Bit-Perfect)" : "Shared");
+              } catch (err: any) {
+                console.error("[UI Audio Lock] Switch failed:", err);
+                alert(err);
+              } finally {
+                setIsSwitchingMode(false);
+              }
+            }}
+          >
+            {isExclusive ? <IconLock /> : <IconLockOpen />}
           </button>
           <div className="device-list-wrapper" ref={deviceListRef} style={{ position: 'relative' }}>
             <button className="ext-control-btn" title="Headphones output" onClick={handleDeviceListClick}>

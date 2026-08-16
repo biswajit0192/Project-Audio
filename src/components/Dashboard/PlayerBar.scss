@@ -98,10 +98,19 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: color 0.2s;
+      transition: color 0.2s, transform 0.2s;
 
       &:hover {
         color: $color-prime-text;
+        transform: scale(1.1);
+      }
+
+      &.is-fav {
+        color: $color-prime;
+
+        &:hover {
+          color: lighten($color-prime, 10%);
+        }
       }
     }
   }
@@ -145,32 +154,39 @@
     }
   }
 
-@keyframes bounce {
-  0%, 100% {
-    transform: scaleY(0.4);
-  }
-  50% {
-    transform: scaleY(1);
-  }
-}
+  @keyframes bounce {
 
-@keyframes opacity-breath {
-  0%, 100% {
-    opacity: 0.15;
-  }
-  50% {
-    opacity: 0.4;
-  }
-}
+    0%,
+    100% {
+      transform: scaleY(0.4);
+    }
 
-@keyframes scaleYGrow {
-  0% {
-    transform: scaleY(0.1);
+    50% {
+      transform: scaleY(1);
+    }
   }
-  100% {
-    transform: scaleY(1);
+
+  @keyframes opacity-breath {
+
+    0%,
+    100% {
+      opacity: 0.15;
+    }
+
+    50% {
+      opacity: 0.4;
+    }
   }
-}
+
+  @keyframes scaleYGrow {
+    0% {
+      transform: scaleY(0.1);
+    }
+
+    100% {
+      transform: scaleY(1);
+    }
+  }
 
   .progress-bar-container {
     display: flex;
@@ -210,12 +226,12 @@
             fill: rgba(255, 255, 255, 0.25);
             transition: fill 0.1s;
           }
-          
+
           .bar-unplayed {
             fill: rgba(255, 255, 255, 0.2);
             transition: fill 0.1s;
           }
-          
+
           .bar-played {
             fill: $color-prime;
             transition: fill 0.1s;
@@ -282,9 +298,9 @@
     left: 24px; // Align horizontally with the volume track
 
     .gain-btn {
-      background: rgba(255, 255, 255, 0.1);
+      background: $color-button-back-gray;
+      color: $color-prime-text;
       border: none;
-      color: rgba(255, 255, 255, 0.7);
       border-radius: 50%;
       width: 20px;
       height: 20px;

@@ -1,50 +1,12 @@
 import { invoke } from '@tauri-apps/api/core';
 import { BackendTrackMetadata } from '../types';
 
-export const scanAndCacheFolder = async (path: string): Promise<void> => {
-  const rawPaths: string[] = await invoke('scan_for_music', { folderPath: path });
-
-  for (let i = 0; i < rawPaths.length; i++) {
-    const filePath = rawPaths[i];
-    const fileName = filePath.split('\\').pop()?.split('/').pop() || 'Unknown';
-    
-    try {
-      const meta: BackendTrackMetadata = await invoke('get_track_metadata', { filePath });
-      try {
-        await invoke('save_track_to_cache', { track: meta });
-      } catch (dbErr) {
-        console.error('DB save error:', dbErr);
-      }
-    } catch (e) {
-      console.error(`Failed to read metadata for ${filePath}:`, e);
-      const fallbackMeta: BackendTrackMetadata = {
-        file_path: filePath,
-        title: fileName,
-        artist: null,
-        album: null,
-        duration: 0,
-        cover_art: null,
-        sample_rate: null,
-        bit_depth: null,
-        bitrate: null,
-        date_added: null
-      };
-      
-      try {
-        await invoke('save_track_to_cache', { track: fallbackMeta });
-      } catch (dbErr) {
-        console.error('DB save error:', dbErr);
-      }
-    }
-  }
-
-  // After all new/updated tracks are saved, purge any missing files from the DB
+export const scanAndCacheFolder = async (path: string): Promise<number> => {
   try {
-    const prunedCount: number = await invoke('cleanup_ghost_tracks');
-    if (prunedCount > 0) {
-      console.log(`Pruned ${prunedCount} missing tracks from the database.`);
-    }
+    const newTracksAdded: number = await invoke('scan_and_sync_library', { folderPath: path });
+    return newTracksAdded;
   } catch (err) {
-    console.error('Failed to prune ghost tracks:', err);
+    console.error('Failed to scan and sync library:', err);
+    throw err;
   }
 };

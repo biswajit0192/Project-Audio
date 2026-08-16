@@ -22,9 +22,63 @@ static APP_HANDLE: OnceLock<tauri::AppHandle> = OnceLock::new();
 
 mod volume;
 mod db;
+mod bass_wasapi;
+
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 pub struct AudioState {
     pub stream: Mutex<Option<u32>>,
+    pub is_exclusive: Arc<AtomicBool>,
+    pub wasapi_device: Mutex<Option<i32>>,
+    pub current_file_path: Mutex<Option<String>>,
+}
+
+pub fn get_default_wasapi_output_device() -> i32 {
+    let mut device_index = 0;
+    loop {
+        let mut info = unsafe { std::mem::zeroed::<bass_wasapi::BASS_WASAPI_DEVICEINFO>() };
+        if !bass_wasapi::wasapi_get_device_info(device_index, &mut info) {
+            break;
+        }
+        let is_enabled = (info.flags & 1) != 0;
+        let is_default = (info.flags & 2) != 0;
+        let is_input = (info.flags & 8) != 0;
+        
+        if is_enabled && is_default && !is_input {
+            println!("Found Default WASAPI Output Device: ID {}", device_index);
+            return device_index as i32;
+        }
+        device_index += 1;
+    }
+    0 // fallback to 0
+}
+
+fn is_internal_speaker(dev: i32) -> bool {
+    let mut info = unsafe { std::mem::zeroed::<bass_wasapi::BASS_WASAPI_DEVICEINFO>() };
+    if bass_wasapi::wasapi_get_device_info(dev as u32, &mut info) {
+        if info.r#type == 1 {
+            if !info.name.is_null() {
+                let name = unsafe { std::ffi::CStr::from_ptr(info.name) }.to_string_lossy().to_lowercase();
+                if name.contains("realtek") || name.contains("conexant") || name.contains("synaptics") || name.contains("intel") || name.contains("high definition") {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
+#[repr(C)]
+pub struct BASS_CHANNELINFO {
+    pub freq: u32,
+    pub chans: u32,
+    pub flags: u32,
+    pub ctype: u32,
+    pub origres: u32,
+    pub plugin: u32,
+    pub sample: u32,
+    pub filename: *const std::os::raw::c_char,
 }
 
 #[tauri::command]
@@ -73,37 +127,45 @@ pub struct TrackMetadata {
 #[tauri::command]
 fn play_audio(file_path: String, state: tauri::State<'_, AudioState>) -> Result<String, String> {
     let mut stream_guard = state.stream.lock().unwrap();
+    let mut path_guard = state.current_file_path.lock().unwrap();
 
-    // If there's an already active stream, stop and free it so they don't overlap (layer)
+    // If there's an already active stream, stop and free it
     if let Some(old_stream) = *stream_guard {
+        if state.is_exclusive.load(Ordering::SeqCst) {
+            bass_wasapi::wasapi_stop(true);
+            bass_wasapi::wasapi_free();
+        }
         bass_sys::BASS_ChannelStop(old_stream);
         bass_sys::BASS_StreamFree(old_stream);
     }
 
-    // Encode path to wide string (UTF-16) for Windows BASS_UNICODE
-    let wide_path: Vec<u16> = OsStr::new(&file_path)
-        .encode_wide()
-        .chain(std::iter::once(0))
-        .collect();
+    *path_guard = Some(file_path.clone());
 
-    // Try to create the new stream using UTF-16
+    let wide_path: Vec<u16> = OsStr::new(&file_path).encode_wide().chain(std::iter::once(0)).collect();
+
+    let is_ex = state.is_exclusive.load(Ordering::SeqCst);
+    let flags = if is_ex {
+        bass_sys::BASS_STREAM_DECODE | bass_sys::BASS_SAMPLE_FLOAT | bass_sys::BASS_UNICODE
+    } else {
+        bass_sys::BASS_UNICODE
+    };
+
+    let cur_dev = unsafe { bass_sys::BASS_GetDevice() };
+    if cur_dev == 0 || cur_dev == u32::MAX {
+        unsafe { bass_sys::BASS_SetDevice(1); }
+    } else {
+        unsafe { bass_sys::BASS_SetDevice(cur_dev); }
+    }
+
     let stream = bass_sys::BASS_StreamCreateFile(
-        0, // FALSE (streaming from a file, not memory)
+        0,
         wide_path.as_ptr() as *const c_void,
-        0,
-        0,
-        bass_sys::BASS_UNICODE,
+        0, 0,
+        flags,
     );
 
     if stream == 0 {
-        return Err("Failed to create BASS audio stream. Ensure path is correct and format is supported.".into());
-    }
-
-    // Play the stream
-    let success = bass_sys::BASS_ChannelPlay(stream, 0);
-    
-    if success == 0 {
-        return Err("Failed to play the BASS audio stream.".into());
+        return Err("Failed to create BASS audio stream.".into());
     }
 
     unsafe extern "C" fn sync_end_callback(_handle: u32, _channel: u32, _data: u32, _user: *mut c_void) {
@@ -112,11 +174,57 @@ fn play_audio(file_path: String, state: tauri::State<'_, AudioState>) -> Result<
         }
     }
     
-    // BASS_SYNC_END = 2
     bass_sys::BASS_ChannelSetSync(stream, 2, 0, sync_end_callback as *mut _, std::ptr::null_mut());
-
-    // Store the new stream handle
     *stream_guard = Some(stream);
+
+    if is_ex {
+        let mut info = unsafe { std::mem::zeroed::<BASS_CHANNELINFO>() };
+        unsafe { bass_sys::BASS_ChannelGetInfo(stream, &mut info as *mut BASS_CHANNELINFO as *mut _); }
+        let mut dev = state.wasapi_device.lock().unwrap().unwrap_or(-1);
+        if dev == -1 {
+            dev = get_default_wasapi_output_device();
+        }
+        
+        bass_wasapi::wasapi_stop(true);
+        bass_wasapi::wasapi_free();
+        
+        std::thread::sleep(std::time::Duration::from_millis(40));
+        
+        let mut init_res = false;
+        let flags = bass_wasapi::BASS_WASAPI_EXCLUSIVE | bass_wasapi::BASS_WASAPI_AUTOFORMAT | bass_wasapi::BASS_WASAPI_DITHER;
+        
+        for _attempt in 1..=4 {
+            init_res = bass_wasapi::wasapi_init(dev, info.freq, info.chans, flags, 0.1, 0.0, bass_wasapi::WASAPIPROC_BASS, stream as *mut c_void);
+            if init_res {
+                break;
+            }
+            
+            let err = unsafe { bass_sys::BASS_ErrorGetCode() };
+            if err == 46 { // BASS_ERROR_BUSY
+                std::thread::sleep(std::time::Duration::from_millis(35));
+            } else {
+                break;
+            }
+        }
+        
+        if init_res {
+            println!("WASAPI Exclusive Mode physically LOCKED on device {} at {}Hz!", dev, info.freq);
+            bass_wasapi::wasapi_start();
+        } else {
+            let err = unsafe { bass_sys::BASS_ErrorGetCode() };
+            eprintln!("WASAPI Exclusive Init FAILED on device {}! Error Code: {}", dev, err);
+            // Fallback
+            state.is_exclusive.store(false, Ordering::SeqCst);
+            bass_sys::BASS_StreamFree(stream);
+            let stream2 = bass_sys::BASS_StreamCreateFile(0, wide_path.as_ptr() as *const c_void, 0, 0, bass_sys::BASS_UNICODE);
+            bass_sys::BASS_ChannelPlay(stream2, 0);
+            bass_sys::BASS_ChannelSetSync(stream2, 2, 0, sync_end_callback as *mut _, std::ptr::null_mut());
+            *stream_guard = Some(stream2);
+        }
+    } else {
+        bass_sys::BASS_ChannelPlay(stream, 0);
+    }
+    
     Ok("Playing audio successfully".into())
 }
 
@@ -124,7 +232,11 @@ fn play_audio(file_path: String, state: tauri::State<'_, AudioState>) -> Result<
 fn pause_audio(state: tauri::State<'_, AudioState>) -> Result<String, String> {
     let stream_guard = state.stream.lock().unwrap();
     if let Some(stream) = *stream_guard {
-        bass_sys::BASS_ChannelPause(stream);
+        if state.is_exclusive.load(Ordering::SeqCst) {
+            bass_wasapi::wasapi_stop(false);
+        } else {
+            bass_sys::BASS_ChannelPause(stream);
+        }
         Ok("Paused audio".into())
     } else {
         Err("No audio stream active".into())
@@ -135,11 +247,161 @@ fn pause_audio(state: tauri::State<'_, AudioState>) -> Result<String, String> {
 fn resume_audio(state: tauri::State<'_, AudioState>) -> Result<String, String> {
     let stream_guard = state.stream.lock().unwrap();
     if let Some(stream) = *stream_guard {
-        bass_sys::BASS_ChannelPlay(stream, 0);
+        if state.is_exclusive.load(Ordering::SeqCst) {
+            bass_wasapi::wasapi_start();
+        } else {
+            bass_sys::BASS_ChannelPlay(stream, 0);
+        }
         Ok("Resumed audio".into())
     } else {
         Err("No audio stream active".into())
     }
+}
+
+#[tauri::command]
+fn set_exclusive_mode(
+    enabled: bool,
+    is_playing: bool,
+    current_pos_secs: f64,
+    state: tauri::State<'_, AudioState>,
+) -> Result<bool, String> {
+    println!("[Audio Switch] Initiating mode switch -> Target: Exclusive = {} | Was Playing = {} | At: {:.2}s", enabled, is_playing, current_pos_secs);
+    let mut stream_guard = state.stream.lock().unwrap();
+    let path_guard = state.current_file_path.lock().unwrap();
+    
+    let file_path = match path_guard.as_ref() {
+        Some(p) => p.clone(),
+        None => {
+            state.is_exclusive.store(enabled, Ordering::SeqCst);
+            return Ok(enabled);
+        }
+    };
+    let wide_path: Vec<u16> = OsStr::new(&file_path).encode_wide().chain(std::iter::once(0)).collect();
+
+    // Step A: Synthetic Stop & Settle
+    println!("[Audio Switch] 1/4 Stopping active audio pipelines & freeing handles...");
+    if let Some(old_stream) = stream_guard.take() {
+        if state.is_exclusive.load(Ordering::SeqCst) {
+            bass_wasapi::wasapi_stop(true);
+        } else {
+            unsafe { bass_sys::BASS_ChannelStop(old_stream); }
+        }
+        bass_wasapi::wasapi_free();
+        unsafe { bass_sys::BASS_StreamFree(old_stream); }
+        println!("[Audio Switch] 2/4 Hardware buffer flush delay (80ms)...");
+        std::thread::sleep(std::time::Duration::from_millis(80));
+    } else {
+        bass_wasapi::wasapi_free();
+    }
+
+    // Step B: Rebuild Target Stream
+    println!("[Audio Switch] 3/4 Creating new stream & restoring position to {:.2}s...", current_pos_secs);
+    state.is_exclusive.store(enabled, Ordering::SeqCst);
+
+    unsafe extern "C" fn sync_end_callback(_handle: u32, _channel: u32, _data: u32, _user: *mut c_void) {
+        if let Some(app) = APP_HANDLE.get() { let _ = app.emit("track-ended", ()); }
+    }
+
+    if enabled {
+        // --- EXCLUSIVE MODE ---
+        let stream = unsafe {
+            bass_sys::BASS_StreamCreateFile(
+                0,
+                wide_path.as_ptr() as *const c_void,
+                0, 0,
+                bass_sys::BASS_STREAM_DECODE | bass_sys::BASS_SAMPLE_FLOAT | bass_sys::BASS_UNICODE
+            )
+        };
+        if stream == 0 {
+            let err = unsafe { bass_sys::BASS_ErrorGetCode() };
+            eprintln!("[Audio Switch] ERROR at step 3: Code {}", err);
+            return Err("Failed to create decode stream for Exclusive mode".into());
+        }
+
+        let mut dev = state.wasapi_device.lock().unwrap().unwrap_or(-1);
+        if dev == -1 {
+            dev = get_default_wasapi_output_device();
+        }
+
+        if is_internal_speaker(dev) {
+            unsafe { bass_sys::BASS_StreamFree(stream); }
+            state.is_exclusive.store(false, Ordering::SeqCst);
+            eprintln!("[Audio Switch] ERROR at step 3: Internal speaker rejected");
+            return Err("Exclusive Mode is disabled for internal laptop speakers to prevent hardware locks.".to_string());
+        }
+
+        let mut info = unsafe { std::mem::zeroed::<BASS_CHANNELINFO>() };
+        unsafe { bass_sys::BASS_ChannelGetInfo(stream, &mut info as *mut BASS_CHANNELINFO as *mut _); }
+
+        let flags = bass_wasapi::BASS_WASAPI_EXCLUSIVE | bass_wasapi::BASS_WASAPI_AUTOFORMAT | bass_wasapi::BASS_WASAPI_DITHER;
+        let mut init_res = false;
+        for _attempt in 1..=4 {
+            init_res = bass_wasapi::wasapi_init(dev, info.freq, info.chans, flags, 0.1, 0.0, bass_wasapi::WASAPIPROC_BASS, stream as *mut c_void);
+            if init_res { break; }
+            let err = unsafe { bass_sys::BASS_ErrorGetCode() };
+            if err == 46 {
+                std::thread::sleep(std::time::Duration::from_millis(35));
+            } else {
+                break;
+            }
+        }
+
+        if !init_res {
+            let err = unsafe { bass_sys::BASS_ErrorGetCode() };
+            state.is_exclusive.store(false, Ordering::SeqCst);
+            unsafe { bass_sys::BASS_StreamFree(stream); }
+            eprintln!("[Audio Switch] ERROR at step 3: Code {}", err);
+            return Err(format!("WASAPI Exclusive Init failed with code {}", err));
+        }
+
+        let new_pos_bytes = unsafe { bass_sys::BASS_ChannelSeconds2Bytes(stream, current_pos_secs) };
+        unsafe { bass_sys::BASS_ChannelSetPosition(stream, new_pos_bytes, bass_sys::BASS_POS_BYTE); }
+        unsafe { bass_sys::BASS_ChannelSetSync(stream, 2, 0, sync_end_callback as *mut _, std::ptr::null_mut()); }
+
+        if is_playing {
+            bass_wasapi::wasapi_start();
+        }
+
+        *stream_guard = Some(stream);
+    } else {
+        // --- SHARED MODE ---
+        unsafe {
+            bass_sys::BASS_Free();
+            bass_sys::BASS_Init(-1, 44100, 0, std::ptr::null_mut(), std::ptr::null_mut());
+        }
+
+        std::thread::sleep(std::time::Duration::from_millis(50));
+
+        let stream = unsafe {
+            bass_sys::BASS_StreamCreateFile(
+                0,
+                wide_path.as_ptr() as *const c_void,
+                0, 0,
+                bass_sys::BASS_UNICODE
+            )
+        };
+        if stream == 0 {
+            let err = unsafe { bass_sys::BASS_ErrorGetCode() };
+            eprintln!("[Audio Switch] ERROR at step 3: Code {}", err);
+            return Err(format!("Failed to create standard shared stream with code {}", err));
+        }
+
+        let new_pos_bytes = unsafe { bass_sys::BASS_ChannelSeconds2Bytes(stream, current_pos_secs) };
+        unsafe {
+            bass_sys::BASS_ChannelSetPosition(stream, new_pos_bytes, bass_sys::BASS_POS_BYTE);
+            bass_sys::BASS_ChannelSetSync(stream, 2, 0, sync_end_callback as *mut _, std::ptr::null_mut());
+            if is_playing {
+                bass_sys::BASS_ChannelPlay(stream, 0);
+            } else {
+                bass_sys::BASS_ChannelPause(stream);
+            }
+        }
+
+        *stream_guard = Some(stream);
+    }
+
+    println!("[Audio Switch] 4/4 Output state: {} (Playback resumed: {})", if enabled { "Exclusive" } else { "Shared" }, is_playing);
+    Ok(enabled)
 }
 
 #[tauri::command]
@@ -313,13 +575,18 @@ pub fn run() {
     ];
 
     tauri::Builder::default()
-        .manage(AudioState { stream: Mutex::new(None) })
+        .manage(AudioState { 
+            stream: Mutex::new(None),
+            is_exclusive: Arc::new(AtomicBool::new(false)),
+            wasapi_device: Mutex::new(None),
+            current_file_path: Mutex::new(None),
+        })
         .plugin(tauri_plugin_sql::Builder::default().add_migrations("sqlite:project_audio.db", migrations).build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
-            greet, scan_for_music, get_track_metadata, play_audio, pause_audio, resume_audio, get_audio_position, seek_audio, reveal_track_in_explorer, volume::set_system_volume, volume::get_system_volume, volume::get_audio_devices, volume::switch_audio_device, volume::get_current_audio_device,
-            db::save_track_to_cache, db::get_cached_library, db::cleanup_ghost_tracks,
+            greet, scan_for_music, get_track_metadata, play_audio, pause_audio, resume_audio, get_audio_position, seek_audio, set_exclusive_mode, reveal_track_in_explorer, volume::set_system_volume, volume::get_system_volume, volume::get_audio_devices, volume::switch_audio_device, volume::get_current_audio_device,
+            db::save_track_to_cache, db::get_cached_library, db::cleanup_ghost_tracks, db::scan_and_sync_library,
             db::create_playlist, db::get_playlists, db::delete_playlist, db::add_track_to_playlist, db::remove_track_from_playlist, db::get_playlist_tracks, db::delete_track, db::update_playlist_cover,
             db::set_device_nickname, db::get_saved_devices, db::delete_device_nickname, db::get_or_generate_waveform
         ])
@@ -411,6 +678,14 @@ pub fn run() {
                     println!("BASS FLAC plugin loaded successfully.");
                 } else {
                     eprintln!("Warning: Failed to load BASS FLAC plugin.");
+                }
+                
+                // Load BASS WASAPI
+                let app_dir = app.path().resource_dir().ok();
+                if let Err(e) = bass_wasapi::load_wasapi(app_dir) {
+                    eprintln!("Failed to load BASS WASAPI: {}", e);
+                } else {
+                    println!("BASS WASAPI loaded successfully.");
                 }
             }
 

@@ -61,6 +61,8 @@
     padding: 0;
     cursor: pointer;
     transition: transform 0.2s;
+    color: $color-prime-text;
+    opacity: 1;
 
     &:hover {
       transform: scale(1.05);
@@ -76,10 +78,12 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background 0.2s;
+    transition: color 0.2s ease;
+    color: $color-secondary-text;
+    opacity: 1;
 
-    &:hover {
-      background: rgba(255, 255, 255, 0.05);
+    &:hover, &.active {
+      color: $color-prime-text;
     }
   }
 
@@ -109,7 +113,7 @@
   }
 
   .right-stats {
-    font-size: 12px;
+    font-size: $font-size-base;
     color: $color-secondary-text;
     font-weight: 500;
   }

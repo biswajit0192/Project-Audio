@@ -43,7 +43,7 @@ const DeviceThresholdRow = ({ device, onUpdate }: { device: SavedDevice, onUpdat
   };
 
   return (
-    <div className="setting-row sub-row" style={{ padding: '8px 0 8px 12px', borderBottom: 'none' }}>
+    <div className="setting-row sub-row" style={{ padding: '8px 0', borderBottom: 'none' }}>
       <div className="setting-label">
         <span className="title" style={{ fontSize: '14px' }}>{device.nickname}</span>
         <span className="desc" style={{ fontSize: '12px' }}>{device.hardware_name}</span>
@@ -97,6 +97,17 @@ export default function Settings() {
     const numeric = saved ? parseFloat(saved) : -17.0;
     return Math.abs(numeric).toFixed(1);
   });
+
+  const [useWaveformSeekbar, setUseWaveformSeekbar] = useState(() => {
+    return localStorage.getItem('hertzsonic_use_waveform') !== 'false';
+  });
+
+  const toggleWaveformSeekbar = () => {
+    const newVal = !useWaveformSeekbar;
+    setUseWaveformSeekbar(newVal);
+    localStorage.setItem('hertzsonic_use_waveform', newVal ? 'true' : 'false');
+    window.dispatchEvent(new Event('waveform-setting-changed'));
+  };
 
   const handleThresholdInputBlur = () => {
     let val = parseFloat(thresholdInputStr);
@@ -404,6 +415,29 @@ export default function Settings() {
           </div>
         </div>
 
+        {/* Appearance */}
+        <div className="settings-section">
+          <div className="section-header">
+            <h2 className="section-title">Appearance</h2>
+          </div>
+          <div className="section-content">
+            <div className="setting-row">
+              <div className="setting-label">
+                <span className="title">Waveform Seekbar</span>
+                <span className="desc">Use the dynamic waveform instead of the minimalist progress bar</span>
+              </div>
+              <div className="setting-action">
+                <div
+                  className={`toggle ${useWaveformSeekbar ? 'active' : ''}`}
+                  onClick={toggleWaveformSeekbar}
+                >
+                  <div className="knob"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Keyboard Shortcuts */}
         <div className="settings-section">
           <div className="section-header">
@@ -447,7 +481,7 @@ export default function Settings() {
                 </div>
               </div>
             </div>
-            <div className="setting-row">
+            <div className="setting-row" style={highVolumeWarning ? { borderBottom: 'none' } : undefined}>
               <div className="setting-label">
                 <span className="title">High Volume Warning</span>
                 <span className="desc">Show a warning dialog before playback if the current volume level exceeds the threshold</span>
@@ -462,8 +496,8 @@ export default function Settings() {
               </div>
             </div>
             {highVolumeWarning && (
-              <div className="sub-panel" style={{ marginLeft: '16px', paddingLeft: '16px', borderLeft: '2px solid rgba(255,255,255,0.1)', display: 'flex', flexDirection: 'column', marginTop: '16px', gap: '16px' }}>
-                <div className="setting-row">
+              <div className="sub-panel" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginLeft: '16px', paddingLeft: '16px', borderLeft: '1px solid #3B3B3B', paddingBottom: '16px', marginTop: '8px' }}>
+                <div className="setting-row" style={{ borderBottom: 'none', paddingTop: 0, paddingBottom: '8px' }}>
                   <div className="setting-label">
                     <span className="title">Protection Mode</span>
                     <span className="desc">Choose how the warning threshold is evaluated</span>
@@ -480,32 +514,12 @@ export default function Settings() {
                   </div>
                 </div>
 
-                {volumeProtectionMode === 'global' ? (
-                  <div className="setting-row">
-                    <div className="setting-label">
-                      <span className="title">Warning Threshold</span>
-                      <span className="desc">Adjust the volume level (-40.0 to 0.0) that triggers the warning</span>
-                    </div>
-                    <div className="setting-action input-action">
-                      <div className="numeric-input-wrapper">
-                        <span className="prefix">-</span>
-                        <input
-                          type="text"
-                          value={thresholdInputStr}
-                          onChange={(e) => setThresholdInputStr(e.target.value)}
-                          onBlur={handleThresholdInputBlur}
-                          className="numeric-input"
-                        />
-                        <span className="suffix">dB</span>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="dynamic-devices-list" style={{ display: 'flex', flexDirection: 'column', marginTop: '4px' }}>
-                    <div className="setting-row sub-row" style={{ padding: '8px 0 8px 12px', borderBottom: 'none' }}>
+                <div style={{ marginLeft: '16px', paddingLeft: '16px', borderLeft: '1px solid #3B3B3B', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {volumeProtectionMode === 'global' ? (
+                    <div className="setting-row" style={{ borderBottom: 'none', padding: '8px 0' }}>
                       <div className="setting-label">
-                        <span className="title" style={{ fontSize: '14px' }}>Default / Laptop Jack / Bluetooth</span>
-                        <span className="desc" style={{ fontSize: '12px', maxWidth: '450px' }}>Fallback limit used when no external USB DAC is connected</span>
+                        <span className="title">Warning Threshold</span>
+                        <span className="desc">Adjust the volume level (-40.0 to 0.0) that triggers the warning</span>
                       </div>
                       <div className="setting-action input-action">
                         <div className="numeric-input-wrapper">
@@ -521,18 +535,40 @@ export default function Settings() {
                         </div>
                       </div>
                     </div>
+                  ) : (
+                    <div className="dynamic-devices-list" style={{ display: 'flex', flexDirection: 'column' }}>
+                      <div className="setting-row sub-row" style={{ padding: '8px 0', borderBottom: 'none' }}>
+                        <div className="setting-label">
+                          <span className="title" style={{ fontSize: '14px' }}>Default / Laptop Jack / Bluetooth</span>
+                          <span className="desc" style={{ fontSize: '12px', maxWidth: '450px' }}>Fallback limit used when no external USB DAC is connected</span>
+                        </div>
+                        <div className="setting-action input-action">
+                          <div className="numeric-input-wrapper">
+                            <span className="prefix">-</span>
+                            <input
+                              type="text"
+                              value={thresholdInputStr}
+                              onChange={(e) => setThresholdInputStr(e.target.value)}
+                              onBlur={handleThresholdInputBlur}
+                              className="numeric-input"
+                            />
+                            <span className="suffix">dB</span>
+                          </div>
+                        </div>
+                      </div>
 
-                    {savedDevices.map(dev => (
-                      <DeviceThresholdRow 
-                        key={dev.hardware_name} 
-                        device={dev} 
-                        onUpdate={() => {
-                          invoke<SavedDevice[]>('get_saved_devices').then(setSavedDevices).catch(console.error);
-                        }} 
-                      />
-                    ))}
-                  </div>
-                )}
+                      {savedDevices.map(dev => (
+                        <DeviceThresholdRow 
+                          key={dev.hardware_name} 
+                          device={dev} 
+                          onUpdate={() => {
+                            invoke<SavedDevice[]>('get_saved_devices').then(setSavedDevices).catch(console.error);
+                          }} 
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>

@@ -9,6 +9,7 @@ fn main() {
     
     println!("cargo:rustc-link-search=native={}", native_path.display());
     println!("cargo:rustc-link-lib=bass");
+    println!("cargo:rerun-if-changed=native");
 
     // Copy bass.dll to the executable target directory for runtime libloading
     if let Ok(out_dir) = env::var("OUT_DIR") {

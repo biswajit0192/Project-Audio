@@ -21,18 +21,20 @@
   }
 
   .settings-section {
-    margin-bottom: 24px;
     display: flex;
     flex-direction: column;
+    gap: $spacing-m;
 
     .section-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 16px;
+      margin-bottom: $spacing-m;
+      padding-bottom: 0;
+      border-bottom: none;
 
       .section-title {
-        font-size: 1.125rem;
+        font-size: $font-size-headings;
         font-weight: 600;
         color: #fff;
         margin: 0;
@@ -42,22 +44,17 @@
     .section-content {
       display: flex;
       flex-direction: column;
-      
-      > .setting-group + .setting-group,
-      > .setting-row + .setting-row,
-      > .setting-row + .setting-group,
-      > .setting-group + .setting-row {
-        margin-top: 16px;
-        padding-top: 16px;
-        border-top: 1px solid rgba(255, 255, 255, 0.05);
-      }
 
       .setting-row {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 0;
-        border: none;
+        padding: 16px 0;
+        border-bottom: 1px solid $color-dark-gray;
+
+        &:last-child {
+          border-bottom: none;
+        }
 
         .setting-label {
           display: flex;
@@ -83,42 +80,49 @@
         .setting-action {
           display: flex;
           align-items: center;
-          justify-content: flex-end;
           gap: 12px;
 
           &.flex-actions {
             gap: 12px;
           }
 
-          button {
-            padding: 8px 20px;
-            border-radius: 20px;
+          .styled-select {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 6px;
             font-size: 13px;
-            font-weight: 600;
+            font-family: inherit;
+            outline: none;
             cursor: pointer;
             transition: all 0.2s;
-            border: none;
 
-            &:disabled {
-              opacity: 0.5;
-              cursor: not-allowed;
+            &:hover {
+              background: rgba(255, 255, 255, 0.1);
             }
 
-            &.loading {
-              cursor: wait;
-              background: rgba(255, 255, 255, 0.1) !important;
-              color: rgba(255, 255, 255, 0.5) !important;
+            option {
+              background: #1a1a1a;
+              color: #fff;
             }
           }
 
           .numeric-input-wrapper {
             display: flex;
             align-items: center;
-            background: rgba(0, 0, 0, 0.4);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
             border-radius: 6px;
             padding: 6px 12px;
             gap: 4px;
+            width: fit-content;
+            transition: all 0.2s;
+
+            &:focus-within {
+              border-color: rgba(255, 255, 255, 0.2);
+              background: rgba(255, 255, 255, 0.05);
+            }
 
             .prefix, .suffix {
               color: rgba(255, 255, 255, 0.5);
@@ -144,24 +148,24 @@
             }
           }
 
-          .styled-select {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 6px;
-            color: #fff;
-            padding: 8px 12px;
-            font-size: 14px;
-            outline: none;
+          button {
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
             cursor: pointer;
             transition: all 0.2s;
+            border: none;
 
-            &:hover {
-              background: rgba(255, 255, 255, 0.08);
+            &:disabled {
+              opacity: 0.5;
+              cursor: not-allowed;
             }
 
-            option {
-              background: #1a1a1a;
-              color: #fff;
+            &.loading {
+              cursor: wait;
+              background: rgba(255, 255, 255, 0.1) !important;
+              color: rgba(255, 255, 255, 0.5) !important;
             }
           }
 
@@ -231,10 +235,10 @@
           .badge {
             background: rgba(255, 255, 255, 0.1);
             color: rgba(255, 255, 255, 0.7);
-            padding: 6px 14px;
-            border-radius: 20px;
+            padding: 4px 12px;
+            border-radius: 12px;
             font-size: 12px;
-            font-weight: 600;
+            font-weight: 500;
 
             &.active {
               background: rgba(229, 57, 53, 0.15);
@@ -242,9 +246,9 @@
             }
 
             &.inactive {
-              background: rgba(255, 255, 255, 0.08);
-              border: none;
-              color: rgba(255, 255, 255, 0.5);
+              background: transparent;
+              border: 1px solid rgba(255, 255, 255, 0.2);
+              color: rgba(255, 255, 255, 0.4);
             }
           }
         }

@@ -58,20 +58,24 @@
     }
 
     .nav-btn {
-      background: none;
+      background: $color-button-back-gray;
+      color: $color-prime-text;
+      border-radius: $section-border-radium-s;
       border: none;
       padding: 0;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      transition: transform 0.2s ease;
+      transition: transform 0.2s ease, color 0.2s ease;
 
       &:hover {
-        transform: scale(1.05);
+        transform: scale(1.1);
+        color: $color-prime-text;
       }
 
-      svg, img {
+      svg,
+      img {
         width: 28px;
         height: 28px;
       }
@@ -93,19 +97,18 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: color 0.2s ease, opacity 0.2s ease;
-      opacity: $button-inactive;
+      transition: color 0.2s ease, transform 0.2s ease;
+      opacity: 1;
 
       &:hover,
       &.active {
-        color: #fff;
-        opacity: $button-active;
+        color: $color-prime-text;
       }
 
       &.play-all-btn {
         padding: 0;
         border-radius: 50%;
-        opacity: $button-active;
+        color: $color-prime-text;
 
         &:hover {
           transform: scale(1.05);

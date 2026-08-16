@@ -2,6 +2,15 @@ use rusqlite::{params, Connection, Result as SqlResult};
 use tauri::{AppHandle, Manager};
 use std::path::PathBuf;
 use crate::TrackMetadata;
+use walkdir::WalkDir;
+use rayon::prelude::*;
+use std::collections::HashSet;
+use lofty::probe::Probe;
+use lofty::tag::Accessor;
+use lofty::file::{AudioFile, TaggedFileExt};
+use std::hash::{Hash, Hasher};
+use std::collections::hash_map::DefaultHasher;
+use std::path::Path;
 
 // Get the path to the SQLite database managed by tauri-plugin-sql
 pub fn get_db_path(app: &AppHandle) -> PathBuf {
@@ -537,17 +546,17 @@ fn generate_waveform_for_file(path: &str) -> Result<Vec<f32>, String> {
                     // Pull the absolute max amplitude from channel 0 for this snapshot packet
                     match decoded {
                         AudioBufferRef::S32(buf) => {
-                            if let Some(&s) = buf.chan(0).iter().max_by_key(|&&v| v.abs()) {
+                            if let Some(&s) = buf.chan(0).iter().max_by(|&&a, &&b| (a as f32).abs().total_cmp(&(b as f32).abs())) {
                                 buckets[i] = (s as f32 / 2147483648.0).abs();
                             }
                         }
                         AudioBufferRef::S24(buf) => {
-                            if let Some(s) = buf.chan(0).iter().max_by_key(|&v| v.0.abs()) {
-                                buckets[i] = (s.0 as f32 / 8388608.0).abs();
+                            if let Some(s) = buf.chan(0).iter().max_by(|&a, &b| (a.inner() as f32).abs().total_cmp(&(b.inner() as f32).abs())) {
+                                buckets[i] = (s.inner() as f32 / 8388608.0).abs();
                             }
                         }
                         AudioBufferRef::S16(buf) => {
-                            if let Some(&s) = buf.chan(0).iter().max_by_key(|&&v| v.abs()) {
+                            if let Some(&s) = buf.chan(0).iter().max_by(|&&a, &&b| (a as f32).abs().total_cmp(&(b as f32).abs())) {
                                 buckets[i] = (s as f32 / 32768.0).abs();
                             }
                         }
@@ -562,7 +571,7 @@ fn generate_waveform_for_file(path: &str) -> Result<Vec<f32>, String> {
                             }
                         }
                         AudioBufferRef::U8(buf) => {
-                            if let Some(&s) = buf.chan(0).iter().max_by_key(|&&v| (v as i32 - 128).abs()) {
+                            if let Some(&s) = buf.chan(0).iter().max_by(|&&a, &&b| ((a as f32) - 128.0).abs().total_cmp(&((b as f32) - 128.0).abs())) {
                                 buckets[i] = ((s as f32 - 128.0) / 128.0).abs();
                             }
                         }
@@ -582,4 +591,190 @@ fn generate_waveform_for_file(path: &str) -> Result<Vec<f32>, String> {
     }
 
     Ok(buckets)
+}
+
+#[tauri::command]
+pub fn scan_and_sync_library(app: tauri::AppHandle, folder_path: String) -> Result<usize, String> {
+    let db_path = get_db_path(&app);
+    let mut conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
+    ensure_schema(&conn).map_err(|e| e.to_string())?;
+
+    // Step A: Load existing file_paths into a HashSet
+    let mut existing_paths = HashSet::new();
+    {
+        let mut stmt = conn.prepare("SELECT file_path FROM music_tracks").map_err(|e| e.to_string())?;
+        let rows = stmt.query_map([], |row| row.get::<_, String>(0)).map_err(|e| e.to_string())?;
+        for path in rows {
+            if let Ok(p) = path {
+                existing_paths.insert(p);
+            }
+        }
+    }
+
+    // Step B: Discover new files
+    let mut new_files = Vec::new();
+    let extensions = ["mp3", "m4a", "flac", "wav", "aac"];
+    
+    for entry in WalkDir::new(&folder_path).into_iter().filter_map(|e| e.ok()) {
+        let path = entry.path();
+        if path.is_file() {
+            if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                if extensions.contains(&ext.to_lowercase().as_str()) {
+                    if let Some(path_str) = path.to_str() {
+                        let path_string = path_str.to_string();
+                        // Step C: Filter out existing files
+                        if !existing_paths.contains(&path_string) {
+                            new_files.push(path_string);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if new_files.is_empty() {
+        // Run cleanup even if no new tracks
+        let _ = cleanup_ghost_tracks_in_folder(&mut conn, &folder_path, &existing_paths);
+        return Ok(0);
+    }
+
+    let app_dir = app.path().app_local_data_dir().ok();
+
+    // Step D: Parallel Metadata Extraction
+    let parsed_tracks: Vec<TrackMetadata> = new_files
+        .par_iter()
+        .filter_map(|file_path| {
+            let path = Path::new(file_path);
+            let tagged_file = Probe::open(path).ok()?.read().ok()?;
+
+            let tag = match tagged_file.primary_tag() {
+                Some(primary_tag) => Some(primary_tag),
+                None => tagged_file.first_tag(),
+            };
+
+            let mut title = path.file_stem().unwrap_or_default().to_string_lossy().to_string();
+            let mut artist = None;
+            let mut album = None;
+            let mut cover_art = None;
+
+            if let Some(tag) = tag {
+                if let Some(t) = tag.title() {
+                    if !t.is_empty() { title = t.to_string(); }
+                }
+                artist = tag.artist().map(|s| s.to_string());
+                album = tag.album().map(|s| s.to_string());
+
+                if let Some(pic) = tag.pictures().first() {
+                    if let Some(ref dir) = app_dir {
+                        let covers_dir = dir.join("covers");
+                        let _ = std::fs::create_dir_all(&covers_dir);
+                        
+                        let mut hasher = DefaultHasher::new();
+                        file_path.hash(&mut hasher);
+                        let file_hash = hasher.finish();
+                        
+                        let is_png = pic.mime_type().map(|m| m.to_string()) == Some("image/png".to_string());
+                        let ext = if is_png { "png" } else { "jpg" };
+                        let cover_file_name = format!("{}.{}", file_hash, ext);
+                        let cover_path = covers_dir.join(cover_file_name);
+                        
+                        if !cover_path.exists() {
+                            let _ = std::fs::write(&cover_path, pic.data());
+                        }
+                        
+                        if let Some(path_str) = cover_path.to_str() {
+                            cover_art = Some(path_str.to_string());
+                        }
+                    }
+                }
+            }
+
+            let props = tagged_file.properties();
+            let duration = props.duration().as_secs();
+            let sample_rate = props.sample_rate();
+            let bit_depth = props.bit_depth();
+            let bitrate = props.audio_bitrate();
+            
+            let mut date_added = None;
+            if let Ok(metadata) = std::fs::metadata(&path) {
+                if let Ok(modified) = metadata.modified() {
+                    if let Ok(dur) = modified.duration_since(std::time::UNIX_EPOCH) {
+                        date_added = Some(dur.as_secs() as i64);
+                    }
+                } else if let Ok(created) = metadata.created() {
+                    if let Ok(dur) = created.duration_since(std::time::UNIX_EPOCH) {
+                        date_added = Some(dur.as_secs() as i64);
+                    }
+                }
+            }
+
+            Some(TrackMetadata {
+                file_path: file_path.clone(),
+                title,
+                artist,
+                album,
+                duration,
+                cover_art,
+                sample_rate,
+                bit_depth,
+                bitrate,
+                date_added,
+            })
+        })
+        .collect();
+
+    let new_tracks_count = parsed_tracks.len();
+
+    // Step E: Single SQLite Transaction
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+    {
+        let mut stmt = tx.prepare(
+            "INSERT OR REPLACE INTO music_tracks 
+            (file_path, title, artist, album, duration_secs, sample_rate, bit_depth, bitrate, cover_art_path, date_added)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)"
+        ).map_err(|e| e.to_string())?;
+
+        for track in parsed_tracks {
+            let _ = stmt.execute(params![
+                track.file_path,
+                track.title,
+                track.artist,
+                track.album,
+                track.duration,
+                track.sample_rate,
+                track.bit_depth,
+                track.bitrate,
+                track.cover_art,
+                track.date_added.unwrap_or(0)
+            ]);
+        }
+    }
+    
+    // Ghost track cleanup scoped to the folder being scanned
+    for existing_path in existing_paths.iter() {
+        if existing_path.starts_with(&folder_path) {
+            if !Path::new(existing_path).exists() {
+                let _ = tx.execute("DELETE FROM music_tracks WHERE file_path = ?1", params![existing_path]);
+                let _ = tx.execute("DELETE FROM playlist_tracks WHERE file_path = ?1", params![existing_path]);
+            }
+        }
+    }
+
+    tx.commit().map_err(|e| e.to_string())?;
+
+    Ok(new_tracks_count)
+}
+
+fn cleanup_ghost_tracks_in_folder(conn: &mut Connection, folder_path: &str, existing_paths: &HashSet<String>) -> SqlResult<()> {
+    let tx = conn.transaction()?;
+    for existing_path in existing_paths.iter() {
+        if existing_path.starts_with(folder_path) {
+            if !Path::new(existing_path).exists() {
+                let _ = tx.execute("DELETE FROM music_tracks WHERE file_path = ?1", params![existing_path]);
+                let _ = tx.execute("DELETE FROM playlist_tracks WHERE file_path = ?1", params![existing_path]);
+            }
+        }
+    }
+    tx.commit()?;
+    Ok(())
 }
