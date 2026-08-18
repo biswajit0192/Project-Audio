@@ -108,7 +108,7 @@ export default function MainContent({ musicFiles, currentTrackId, searchQuery = 
       {!query && recentAlbums.length > 0 && (
         <div className="recent-albums-section">
           <div className="section-header">
-            <h2 className="section-title">Recent albums</h2>
+            <h2 className="section-heading">Recent albums</h2>
             <div className="section-actions">
               <span 
                 className="view-all" 
@@ -154,7 +154,7 @@ export default function MainContent({ musicFiles, currentTrackId, searchQuery = 
       {/* RECENT TRACKS SECTION */}
       <div className="recent-tracks-section">
         <div className="section-header">
-          <h2 className="section-title">{query ? 'Search Results' : 'Recent tracks'}</h2>
+          <h2 className="section-heading">{query ? 'Search Results' : 'Recent tracks'}</h2>
           <div className="section-actions tracks-actions">
             <span className="tracks-meta">
               {filteredFiles.length} tracks &bull; {durationStr}

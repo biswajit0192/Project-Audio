@@ -68,6 +68,18 @@ const DeviceThresholdRow = ({ device, onUpdate }: { device: SavedDevice, onUpdat
 export default function Settings() {
   const [hqAudio, setHqAudio] = useState(true);
   const [autoSync, setAutoSync] = useState(false);
+  const [fadeDuration, setFadeDuration] = useState(250);
+
+  useEffect(() => {
+    invoke<number>('get_fade_duration').then(setFadeDuration).catch(console.error);
+  }, []);
+
+  const handleFadeDurationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = parseInt(e.target.value);
+    setFadeDuration(val);
+    invoke('set_fade_duration', { durationMs: val }).catch(console.error);
+  };
+
   const [highVolumeWarning, setHighVolumeWarning] = useState(() => {
     return localStorage.getItem('hertzsonic_high_volume_warning') !== 'false';
   });
@@ -260,7 +272,7 @@ export default function Settings() {
         {/* Account & Profile */}
         <div className="settings-section">
           <div className="section-header">
-            <h2 className="section-title">Account</h2>
+            <h2 className="section-heading">Account</h2>
           </div>
           <div className="section-content">
             {!isLoggedIn || !user ? (
@@ -328,7 +340,7 @@ export default function Settings() {
         {/* Music Library & Storage */}
         <div className="settings-section">
           <div className="section-header">
-            <h2 className="section-title">Music Library</h2>
+            <h2 className="section-heading">Music Library</h2>
           </div>
           <div className="section-content">
             <div className="setting-row">
@@ -385,7 +397,7 @@ export default function Settings() {
         {/* Cloud & External Storage */}
         <div className="settings-section">
           <div className="section-header">
-            <h2 className="section-title">Cloud Storage</h2>
+            <h2 className="section-heading">Cloud Storage</h2>
           </div>
           <div className="section-content">
             <div className="setting-row">
@@ -418,7 +430,7 @@ export default function Settings() {
         {/* Appearance */}
         <div className="settings-section">
           <div className="section-header">
-            <h2 className="section-title">Appearance</h2>
+            <h2 className="section-heading">Appearance</h2>
           </div>
           <div className="section-content">
             <div className="setting-row">
@@ -441,7 +453,7 @@ export default function Settings() {
         {/* Keyboard Shortcuts */}
         <div className="settings-section">
           <div className="section-header">
-            <h2 className="section-title">Keyboard Shortcuts</h2>
+            <h2 className="section-heading">Keyboard Shortcuts</h2>
           </div>
           <div className="section-content">
             <div className="setting-row">
@@ -464,9 +476,32 @@ export default function Settings() {
         {/* Audio Engine Preferences */}
         <div className="settings-section">
           <div className="section-header">
-            <h2 className="section-title">Audio Engine</h2>
+            <h2 className="section-heading">Audio Engine</h2>
           </div>
           <div className="section-content">
+            <div className="setting-row">
+              <div className="setting-label">
+                <span className="title">Play / Pause Fade Duration</span>
+                <span className="desc">Smoothly fades volume in and out when pausing and resuming to prevent abrupt audio cuts and clicks.</span>
+              </div>
+              <div className="setting-action" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--color-prime)', minWidth: '40px', textAlign: 'right' }}>
+                  {fadeDuration === 0 ? 'Off' : `${fadeDuration} ms`}
+                </span>
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="1000" 
+                  step="25" 
+                  value={fadeDuration} 
+                  onChange={handleFadeDurationChange}
+                  className="settings-range-slider"
+                  style={{ 
+                    '--track-bg': `linear-gradient(to right, #F92E16 ${(fadeDuration / 1000) * 100}%, #2b2b2b ${(fadeDuration / 1000) * 100}%)`
+                  } as React.CSSProperties}
+                />
+              </div>
+            </div>
             <div className="setting-row">
               <div className="setting-label">
                 <span className="title">Exclusive Mode (WASAPI)</span>

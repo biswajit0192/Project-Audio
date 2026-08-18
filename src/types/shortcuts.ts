@@ -30,11 +30,11 @@ export const defaultShortcuts: ShortcutConfig[] = [
 
 export const actionLabels: Record<ShortcutAction, string> = {
   'PLAY_PAUSE': 'Play / Pause',
-  'SKIP_FORWARD_10': 'Seek Forward 10s',
-  'SKIP_BACKWARD_10': 'Seek Backward 10s',
+  'SKIP_FORWARD_10': 'Seek Forward (10s)',
+  'SKIP_BACKWARD_10': 'Seek Backward (10s)',
   'NEXT_TRACK': 'Next Track',
   'PREV_TRACK': 'Previous Track',
-  'VOLUME_UP': 'Volume Up',
-  'VOLUME_DOWN': 'Volume Down',
+  'VOLUME_UP': 'Volume Up (3dB)',
+  'VOLUME_DOWN': 'Volume Down (3dB)',
   'TOGGLE_MUTE': 'Toggle Mute'
 };

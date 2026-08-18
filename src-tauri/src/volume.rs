@@ -229,7 +229,29 @@ pub fn setup_volume_listener(app_handle: AppHandle) -> std::result::Result<Volum
                                         ctx.endpoint_volume = Some(EndpointVolumeWrapper(endpoint_volume));
                                         ctx.callback = Some(EndpointCallbackWrapper(callback));
                                         if let Ok(id_pwstr) = device.GetId() {
-                                            ctx.active_device_id = Some(id_pwstr.to_string().unwrap_or_default());
+                                            let id_str = id_pwstr.to_string().unwrap_or_default();
+                                            ctx.active_device_id = Some(id_str.clone());
+                                            
+                                            let mut name_str = String::new();
+                                            if let Ok(store) = device.OpenPropertyStore(STGM_READ) {
+                                                if let Ok(prop) = store.GetValue(&PKEY_Device_FriendlyName) {
+                                                    let prop_string = prop.to_string();
+                                                    if !prop_string.is_empty() {
+                                                        name_str = prop_string;
+                                                    }
+                                                }
+                                            }
+                                            
+                                            #[derive(serde::Serialize, Clone)]
+                                            struct DeviceChangeEvent {
+                                                device_name: String,
+                                                device_id: String,
+                                            }
+                                            
+                                            let _ = thread_app_handle.emit("audio-device-changed", DeviceChangeEvent {
+                                                device_name: if name_str.is_empty() { "Unknown Device".into() } else { name_str },
+                                                device_id: id_str,
+                                            });
                                         }
                                         println!("Successfully re-hooked to new default device!");
                                     }

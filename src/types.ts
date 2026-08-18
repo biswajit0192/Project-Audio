@@ -26,3 +26,15 @@ export interface Track {
   dateAdded?: number;
   waveformData?: number[];
 }
+
+
+export interface EQProfile {
+  id: string;
+  name: string;
+  bandMode: '15-band' | '31-band';
+  bandsJson: string;
+  isFreqLocked: boolean;
+  linkedDeviceName?: string | null;
+  autoSwitchOnConnect: boolean;
+  createdAt: number;
+}

@@ -2,8 +2,13 @@ import './RightPanel.scss';
 import { useQueue } from '../../context/QueueContext';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { PlusCircle, MoreVertical } from 'lucide-react';
+import QuickEqualizer from '../Sidebar/QuickEqualizer';
 
-export default function RightPanel() {
+interface RightPanelProps {
+  mode?: 'queue' | 'equalizer';
+}
+
+export default function RightPanel({ mode = 'queue' }: RightPanelProps) {
   const { queue, currentIndex, playContext } = useQueue();
 
 
@@ -18,10 +23,18 @@ export default function RightPanel() {
     playContext(queue, indexInQueue);
   };
 
+  if (mode === 'equalizer') {
+    return (
+      <div className="dashboard-right-panel">
+        <QuickEqualizer />
+      </div>
+    );
+  }
+
   return (
     <div className="dashboard-right-panel">
       <div className="right-panel-header">
-        <h2 className="section-title">Queue</h2>
+        <h2 className="section-heading">Queue</h2>
       </div>
 
       <div className="right-panel-content">

@@ -8,6 +8,7 @@ import Settings from '../pages/Settings';
 import Library from '../pages/Library';
 import AllPlaylists from '../pages/AllPlaylists';
 import PlaylistDetail from '../Playlist/PlaylistDetail';
+import EqualizerView from './EqualizerView';
 import './Dashboard.scss';
 import { invoke } from '@tauri-apps/api/core';
 
@@ -73,6 +74,7 @@ export default function Dashboard({ searchQuery }: DashboardProps) {
     location.state?.activeView || 'home'
   );
 
+  const [rightPanelMode, setRightPanelMode] = useState<'queue' | 'equalizer'>('queue');
   const [libraryFilter, setLibraryFilter] = useState<{tab: string, filter: string} | null>(null);
 
   useEffect(() => {
@@ -89,6 +91,14 @@ export default function Dashboard({ searchQuery }: DashboardProps) {
     };
     window.addEventListener('navigate-library', handleNavigateLibrary);
     return () => window.removeEventListener('navigate-library', handleNavigateLibrary);
+  }, []);
+
+  useEffect(() => {
+    const handleNavigateEqualizer = () => {
+      setCurrentView('equalizer');
+    };
+    window.addEventListener('navigate-equalizer', handleNavigateEqualizer);
+    return () => window.removeEventListener('navigate-equalizer', handleNavigateEqualizer);
   }, []);
 
   useEffect(() => {
@@ -133,6 +143,8 @@ export default function Dashboard({ searchQuery }: DashboardProps) {
                 currentTrackId={currentTrack?.id}
                 initialFilter={libraryFilter}
               />
+            ) : currentView === 'equalizer' ? (
+              <EqualizerView />
             ) : currentView === 'all_playlists' ? (
               <AllPlaylists 
                 musicFiles={musicFiles} 
@@ -155,11 +167,14 @@ export default function Dashboard({ searchQuery }: DashboardProps) {
       </div>
       
       <div className="dashboard-right">
-        <RightPanel />
+        <RightPanel mode={rightPanelMode} />
       </div>
       
       <div className="dashboard-bottom">
-        <PlayerBar />
+        <PlayerBar 
+          rightPanelMode={rightPanelMode} 
+          onSetRightPanelMode={setRightPanelMode} 
+        />
       </div>
     </div>
   );

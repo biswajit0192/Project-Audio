@@ -113,7 +113,7 @@ export default function Sidebar({ activeView, onNavigate, isCollapsed, onToggleC
                 <span>Library</span>
               </div>
             </li>
-            <li className="nav-item">
+            <li className={`nav-item ${activeView === 'equalizer' ? 'active' : ''}`} onClick={() => onNavigate('equalizer')}>
               <div className="nav-item-content">
                 <IconEqualizer className="nav-icon" />
                 <span>Equalizer</span>

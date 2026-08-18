@@ -85,7 +85,7 @@ export default function ShortcutsSettings({ onBack }: ShortcutsSettingsProps) {
       <div className="settings-list">
         <div className="settings-section">
           <div className="section-header">
-            <h2 className="section-title">Configure Hotkeys</h2>
+            <h2 className="section-heading">Configure Hotkeys</h2>
             <p className="desc" style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', marginLeft: '16px', margin: 0 }}>
               Click remap to start recording your custom shortcut.
             </p>

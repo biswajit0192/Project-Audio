@@ -13,6 +13,7 @@ import RefreshIcon from './assets/Refresh Icon.svg?react';
 import ProfileIcon from './assets/Profile-icon.svg?react';
 import { scanAndCacheFolder } from './utils/scanner';
 import { useAuth } from './context/AuthContext';
+import { EQProvider } from './context/EQContext';
 import ManageAccount from './components/Account/ManageAccount';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { defaultShortcuts, ShortcutConfig } from './types/shortcuts';
@@ -180,7 +181,11 @@ export default function App() {
         <Route path="/auth/create-account" element={<CreateAccount />} />
         <Route path="/auth/forgot-password" element={<ForgotPassword />} />
         <Route path="/sync" element={<SyncPage />} />
-        <Route path="/dashboard" element={<Dashboard searchQuery={searchQuery} />} />
+        <Route path="/dashboard" element={
+          <EQProvider>
+            <Dashboard searchQuery={searchQuery} />
+          </EQProvider>
+        } />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 

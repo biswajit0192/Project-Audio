@@ -348,10 +348,8 @@
         height: auto;
       }
 
-      &.queue-btn {
-        &.active {
-          color: $color-prime;
-        }
+      &.active {
+        color: $color-prime;
       }
     }
 

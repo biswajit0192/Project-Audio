@@ -24,14 +24,29 @@ mod volume;
 mod db;
 mod bass_wasapi;
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::Arc;
+
+mod bass_fx;
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct EqBandPayload {
+    pub index: i32,
+    pub freq: f32,
+    pub gain: f32,
+    pub bandwidth: Option<f32>,
+}
 
 pub struct AudioState {
     pub stream: Mutex<Option<u32>>,
     pub is_exclusive: Arc<AtomicBool>,
     pub wasapi_device: Mutex<Option<i32>>,
     pub current_file_path: Mutex<Option<String>>,
+    pub eq_fx_handle: Mutex<Option<u32>>,
+    pub eq_bands: Mutex<Vec<EqBandPayload>>,
+    pub eq_enabled: Arc<AtomicBool>,
+    pub fade_duration_ms: Arc<AtomicU32>,
+    pub preamp_volume: Arc<AtomicU32>,
 }
 
 pub fn get_default_wasapi_output_device() -> i32 {
@@ -81,6 +96,19 @@ pub struct BASS_CHANNELINFO {
     pub filename: *const std::os::raw::c_char,
 }
 
+
+#[tauri::command]
+fn get_fade_duration(state: tauri::State<'_, AudioState>) -> Result<u32, String> {
+    Ok(state.fade_duration_ms.load(Ordering::SeqCst))
+}
+
+#[tauri::command]
+fn set_fade_duration(app: tauri::AppHandle, duration_ms: u32, state: tauri::State<'_, AudioState>) -> Result<(), String> {
+    state.fade_duration_ms.store(duration_ms, Ordering::SeqCst);
+    crate::db::set_setting(&app, "fade_duration_ms", &duration_ms.to_string())?;
+    Ok(())
+}
+
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
@@ -124,6 +152,57 @@ pub struct TrackMetadata {
     pub date_added: Option<i64>,
 }
 
+fn attach_eq_to_stream(stream: u32, state: &AudioState) {
+    if stream == 0 {
+        return;
+    }
+    
+    let mut eq_fx = state.eq_fx_handle.lock().unwrap();
+    let bands = state.eq_bands.lock().unwrap();
+    let enabled = state.eq_enabled.load(Ordering::SeqCst);
+    
+    let max_boost = if enabled {
+        bands.iter().map(|b| b.gain).fold(0.0f32, f32::max)
+    } else {
+        0.0f32
+    };
+    let target_vol = if max_boost > 0.0 { 10f32.powf(-max_boost / 20.0) } else { 1.0f32 };
+    state.preamp_volume.store(target_vol.to_bits(), Ordering::SeqCst);
+    
+    // Auto-preamp stream volume (BASS_ATTRIB_VOL)
+    unsafe { bass_sys::BASS_ChannelSetAttribute(stream, 2, target_vol); }
+    println!("[DSP] Auto-Preamp set to {:.3} (-{:.1} dB)", target_vol, max_boost.max(0.0));
+    
+    let fx_handle = bass_fx::channel_set_fx(stream, bass_fx::BASS_FX_BFX_PEAKEQ, 0);
+    if fx_handle == 0 {
+        let err = unsafe { bass_sys::BASS_ErrorGetCode() };
+        eprintln!("[BASS_FX] FAILED BASS_ChannelSetFX on stream {}: Error Code {}", stream, err);
+        *eq_fx = None;
+    } else {
+        println!("[BASS_FX] SUCCESS attached BASS_FX_BFX_PEAKEQ (FX Handle: {}) to stream {}", fx_handle, stream);
+        *eq_fx = Some(fx_handle);
+        
+        let bw = if bands.len() == 15 { 0.67f32 } else { 0.33f32 };
+        
+        for band in bands.iter() {
+            let mut params = bass_fx::BASS_BFX_PEAKEQ {
+                lBand: band.index,
+                fBandwidth: bw,
+                fQ: 0.0,
+                fCenter: band.freq,
+                fGain: if enabled { band.gain.clamp(-30.0, 30.0) } else { 0.0 },
+                lChannel: -1,
+            };
+            let ok = bass_fx::fx_set_parameters(fx_handle, &mut params as *mut _ as *const std::os::raw::c_void);
+            if !ok {
+                let err = unsafe { bass_sys::BASS_ErrorGetCode() };
+                eprintln!("[BASS_FX] FAILED BASS_FXSetParameters band {}: Error Code {}", band.index, err);
+            }
+        }
+        println!("[BASS_FX] Synced {} EQ bands to stream {} with {:.2} octave BW", bands.len(), stream, bw);
+    }
+}
+
 #[tauri::command]
 fn play_audio(file_path: String, state: tauri::State<'_, AudioState>) -> Result<String, String> {
     let mut stream_guard = state.stream.lock().unwrap();
@@ -147,7 +226,7 @@ fn play_audio(file_path: String, state: tauri::State<'_, AudioState>) -> Result<
     let flags = if is_ex {
         bass_sys::BASS_STREAM_DECODE | bass_sys::BASS_SAMPLE_FLOAT | bass_sys::BASS_UNICODE
     } else {
-        bass_sys::BASS_UNICODE
+        bass_sys::BASS_SAMPLE_FLOAT | bass_sys::BASS_UNICODE
     };
 
     let cur_dev = unsafe { bass_sys::BASS_GetDevice() };
@@ -175,6 +254,7 @@ fn play_audio(file_path: String, state: tauri::State<'_, AudioState>) -> Result<
     }
     
     bass_sys::BASS_ChannelSetSync(stream, 2, 0, sync_end_callback as *mut _, std::ptr::null_mut());
+    attach_eq_to_stream(stream, &state);
     *stream_guard = Some(stream);
 
     if is_ex {
@@ -216,13 +296,34 @@ fn play_audio(file_path: String, state: tauri::State<'_, AudioState>) -> Result<
             // Fallback
             state.is_exclusive.store(false, Ordering::SeqCst);
             bass_sys::BASS_StreamFree(stream);
-            let stream2 = bass_sys::BASS_StreamCreateFile(0, wide_path.as_ptr() as *const c_void, 0, 0, bass_sys::BASS_UNICODE);
-            bass_sys::BASS_ChannelPlay(stream2, 0);
-            bass_sys::BASS_ChannelSetSync(stream2, 2, 0, sync_end_callback as *mut _, std::ptr::null_mut());
+            let stream2 = bass_sys::BASS_StreamCreateFile(0, wide_path.as_ptr() as *const c_void, 0, 0, bass_sys::BASS_SAMPLE_FLOAT | bass_sys::BASS_UNICODE);
+            
+            attach_eq_to_stream(stream2, &state);
+            let target_vol = f32::from_bits(state.preamp_volume.load(Ordering::SeqCst));
+            let fade_ms = state.fade_duration_ms.load(Ordering::SeqCst);
+            if fade_ms > 0 {
+                unsafe { bass_sys::BASS_ChannelSetAttribute(stream2, 2, 0.0); }
+                unsafe { bass_sys::BASS_ChannelPlay(stream2, 0); }
+                unsafe { bass_sys::BASS_ChannelSlideAttribute(stream2, 2, target_vol, fade_ms); }
+            } else {
+                unsafe { bass_sys::BASS_ChannelSetAttribute(stream2, 2, target_vol); }
+                unsafe { bass_sys::BASS_ChannelPlay(stream2, 0); }
+            }
+            
+            unsafe { bass_sys::BASS_ChannelSetSync(stream2, 2, 0, sync_end_callback as *mut _, std::ptr::null_mut()); }
             *stream_guard = Some(stream2);
         }
     } else {
-        bass_sys::BASS_ChannelPlay(stream, 0);
+        let target_vol = f32::from_bits(state.preamp_volume.load(Ordering::SeqCst));
+        let fade_ms = state.fade_duration_ms.load(Ordering::SeqCst);
+        if fade_ms > 0 {
+            unsafe { bass_sys::BASS_ChannelSetAttribute(stream, 2, 0.0); }
+            unsafe { bass_sys::BASS_ChannelPlay(stream, 0); }
+            unsafe { bass_sys::BASS_ChannelSlideAttribute(stream, 2, target_vol, fade_ms); }
+        } else {
+            unsafe { bass_sys::BASS_ChannelSetAttribute(stream, 2, target_vol); }
+            unsafe { bass_sys::BASS_ChannelPlay(stream, 0); }
+        }
     }
     
     Ok("Playing audio successfully".into())
@@ -230,12 +331,34 @@ fn play_audio(file_path: String, state: tauri::State<'_, AudioState>) -> Result<
 
 #[tauri::command]
 fn pause_audio(state: tauri::State<'_, AudioState>) -> Result<String, String> {
+    let fade_duration_ms = state.fade_duration_ms.load(Ordering::SeqCst);
     let stream_guard = state.stream.lock().unwrap();
     if let Some(stream) = *stream_guard {
-        if state.is_exclusive.load(Ordering::SeqCst) {
-            bass_wasapi::wasapi_stop(false);
+        if fade_duration_ms == 0 {
+            if state.is_exclusive.load(Ordering::SeqCst) {
+                bass_wasapi::wasapi_stop(false);
+            } else {
+                unsafe { bass_sys::BASS_ChannelPause(stream); }
+            }
         } else {
-            bass_sys::BASS_ChannelPause(stream);
+            let mut current_vol = 1.0f32;
+            unsafe { bass_sys::BASS_ChannelGetAttribute(stream, 2, &mut current_vol); }
+            println!("[Anti-Pop] Fading OUT over {}ms (Start Vol: {:.2})", fade_duration_ms, current_vol);
+            let slide_res = unsafe { bass_sys::BASS_ChannelSlideAttribute(stream, 2, 0.0, fade_duration_ms) };
+            println!("[Anti-Pop] BASS_ChannelSlideAttribute result = {}", slide_res);
+            
+            let fade_ms = fade_duration_ms as u64;
+            let is_exc = state.is_exclusive.clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_millis(fade_ms));
+                println!("[Anti-Pop] Sleep finished, pausing stream!");
+                if is_exc.load(Ordering::SeqCst) {
+                    bass_wasapi::wasapi_stop(false);
+                } else {
+                    unsafe { bass_sys::BASS_ChannelPause(stream); }
+                }
+                unsafe { bass_sys::BASS_ChannelSetAttribute(stream, 2, current_vol); }
+            });
         }
         Ok("Paused audio".into())
     } else {
@@ -245,12 +368,28 @@ fn pause_audio(state: tauri::State<'_, AudioState>) -> Result<String, String> {
 
 #[tauri::command]
 fn resume_audio(state: tauri::State<'_, AudioState>) -> Result<String, String> {
+    let fade_duration_ms = state.fade_duration_ms.load(Ordering::SeqCst);
+    let target_vol = f32::from_bits(state.preamp_volume.load(Ordering::SeqCst));
     let stream_guard = state.stream.lock().unwrap();
     if let Some(stream) = *stream_guard {
-        if state.is_exclusive.load(Ordering::SeqCst) {
-            bass_wasapi::wasapi_start();
+        if fade_duration_ms > 0 {
+            unsafe { bass_sys::BASS_ChannelSetAttribute(stream, 2, 0.0); }
+            println!("[Anti-Pop] Fading IN over {}ms to Vol: {:.2}", fade_duration_ms, target_vol);
+            
+            if state.is_exclusive.load(Ordering::SeqCst) {
+                bass_wasapi::wasapi_start();
+            } else {
+                unsafe { bass_sys::BASS_ChannelPlay(stream, 0); }
+            }
+            let slide_res = unsafe { bass_sys::BASS_ChannelSlideAttribute(stream, 2, target_vol, fade_duration_ms) };
+            println!("[Anti-Pop] BASS_ChannelSlideAttribute result = {}", slide_res);
         } else {
-            bass_sys::BASS_ChannelPlay(stream, 0);
+            unsafe { bass_sys::BASS_ChannelSetAttribute(stream, 2, target_vol); }
+            if state.is_exclusive.load(Ordering::SeqCst) {
+                bass_wasapi::wasapi_start();
+            } else {
+                unsafe { bass_sys::BASS_ChannelPlay(stream, 0); }
+            }
         }
         Ok("Resumed audio".into())
     } else {
@@ -362,6 +501,7 @@ fn set_exclusive_mode(
             bass_wasapi::wasapi_start();
         }
 
+        attach_eq_to_stream(stream, &state);
         *stream_guard = Some(stream);
     } else {
         // --- SHARED MODE ---
@@ -397,6 +537,7 @@ fn set_exclusive_mode(
             }
         }
 
+        attach_eq_to_stream(stream, &state);
         *stream_guard = Some(stream);
     }
 
@@ -532,7 +673,86 @@ fn reveal_track_in_explorer(path: String) {
 use tauri_plugin_sql::{Migration, MigrationKind};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
+
+#[tauri::command]
+fn apply_eq_bands(bands: Vec<EqBandPayload>, state: tauri::State<'_, AudioState>) -> Result<(), String> {
+    let mut state_bands = state.eq_bands.lock().unwrap();
+    *state_bands = bands.clone();
+    
+    if !state.eq_enabled.load(Ordering::SeqCst) {
+        return Ok(()); // Just saved the bands
+    }
+    
+    let eq_fx = state.eq_fx_handle.lock().unwrap();
+    if let Some(fx_handle) = *eq_fx {
+        for band in bands.iter() {
+            let mut params = bass_fx::BASS_BFX_PEAKEQ {
+                lBand: band.index,
+                fBandwidth: band.bandwidth.unwrap_or(1.0),
+                fQ: 0.0,
+                fCenter: band.freq,
+                fGain: band.gain.clamp(-15.0, 15.0),
+                lChannel: -1,
+            };
+            let ok = bass_fx::fx_set_parameters(fx_handle, &mut params as *mut _ as *const std::os::raw::c_void);
+            if !ok {
+                let err = unsafe { bass_sys::BASS_ErrorGetCode() };
+                eprintln!("[BASS_FX] FAILED BASS_FXSetParameters band {}: Error Code {}", band.index, err);
+            }
+        }
+        println!("[BASS_FX] Applied {} bands to FX Handle {}", bands.len(), fx_handle);
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn toggle_eq(enabled: bool, state: tauri::State<'_, AudioState>) -> Result<bool, String> {
+    state.eq_enabled.store(enabled, Ordering::SeqCst);
+    
+    let stream_guard = state.stream.lock().unwrap();
+    let mut eq_fx = state.eq_fx_handle.lock().unwrap();
+    
+    if let Some(stream) = *stream_guard {
+        if enabled {
+            // Attach if not already
+            if eq_fx.is_none() {
+                let fx_handle = bass_fx::channel_set_fx(stream, bass_fx::BASS_FX_BFX_PEAKEQ, 0);
+                if fx_handle != 0 {
+                    *eq_fx = Some(fx_handle);
+                    let bands = state.eq_bands.lock().unwrap();
+                    for band in bands.iter() {
+                        let mut params = bass_fx::BASS_BFX_PEAKEQ {
+                            lBand: band.index,
+                            fBandwidth: band.bandwidth.unwrap_or(1.0),
+                            fQ: 0.0,
+                            fCenter: band.freq,
+                            fGain: band.gain,
+                            lChannel: -1,
+                        };
+                        bass_fx::fx_set_parameters(fx_handle, &mut params as *mut _ as *const std::os::raw::c_void);
+                    }
+                }
+            }
+        } else {
+            // Remove
+            if let Some(fx_handle) = *eq_fx {
+                bass_fx::channel_remove_fx(stream, fx_handle);
+                *eq_fx = None;
+            }
+        }
+    }
+    
+    Ok(enabled)
+}
+
+#[tauri::command]
+fn get_eq_state(state: tauri::State<'_, AudioState>) -> Result<Vec<EqBandPayload>, String> {
+    let bands = state.eq_bands.lock().unwrap();
+    Ok(bands.clone())
+}
+
 pub fn run() {
+
     let migrations = vec![
         Migration {
             version: 1,
@@ -574,12 +794,28 @@ pub fn run() {
         }
     ];
 
+    let initial_state = AudioState { 
+        stream: Mutex::new(None),
+        is_exclusive: Arc::new(AtomicBool::new(false)),
+        wasapi_device: Mutex::new(None),
+        current_file_path: Mutex::new(None),
+        eq_fx_handle: Mutex::new(None),
+        eq_bands: Mutex::new(Vec::new()),
+        eq_enabled: Arc::new(AtomicBool::new(true)),
+        fade_duration_ms: Arc::new(AtomicU32::new(250)),
+        preamp_volume: Arc::new(AtomicU32::new(1.0f32.to_bits())),
+    };
+
     tauri::Builder::default()
-        .manage(AudioState { 
-            stream: Mutex::new(None),
-            is_exclusive: Arc::new(AtomicBool::new(false)),
-            wasapi_device: Mutex::new(None),
-            current_file_path: Mutex::new(None),
+        .manage(initial_state)
+        .setup(|app| {
+            if let Ok(Some(val)) = crate::db::get_setting(app.handle(), "fade_duration_ms") {
+                if let Ok(ms) = val.parse::<u32>() {
+                    let state = app.state::<AudioState>();
+                    state.fade_duration_ms.store(ms, Ordering::SeqCst);
+                }
+            }
+            Ok(())
         })
         .plugin(tauri_plugin_sql::Builder::default().add_migrations("sqlite:project_audio.db", migrations).build())
         .plugin(tauri_plugin_dialog::init())
@@ -588,7 +824,10 @@ pub fn run() {
             greet, scan_for_music, get_track_metadata, play_audio, pause_audio, resume_audio, get_audio_position, seek_audio, set_exclusive_mode, reveal_track_in_explorer, volume::set_system_volume, volume::get_system_volume, volume::get_audio_devices, volume::switch_audio_device, volume::get_current_audio_device,
             db::save_track_to_cache, db::get_cached_library, db::cleanup_ghost_tracks, db::scan_and_sync_library,
             db::create_playlist, db::get_playlists, db::delete_playlist, db::add_track_to_playlist, db::remove_track_from_playlist, db::get_playlist_tracks, db::delete_track, db::update_playlist_cover,
-            db::set_device_nickname, db::get_saved_devices, db::delete_device_nickname, db::get_or_generate_waveform
+            db::set_device_nickname, db::get_saved_devices, db::delete_device_nickname, db::get_or_generate_waveform,
+            apply_eq_bands, toggle_eq, get_eq_state,
+            get_fade_duration, set_fade_duration,
+            crate::db::save_eq_profile, crate::db::load_eq_profiles, crate::db::delete_eq_profile
         ])
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
@@ -682,10 +921,16 @@ pub fn run() {
                 
                 // Load BASS WASAPI
                 let app_dir = app.path().resource_dir().ok();
-                if let Err(e) = bass_wasapi::load_wasapi(app_dir) {
+                if let Err(e) = bass_wasapi::load_wasapi(app_dir.clone()) {
                     eprintln!("Failed to load BASS WASAPI: {}", e);
                 } else {
                     println!("BASS WASAPI loaded successfully.");
+                }
+                
+                if let Err(e) = bass_fx::load_bass_fx(app_dir) {
+                    eprintln!("Failed to load BASS_FX: {}", e);
+                } else {
+                    println!("BASS FX plugin loaded successfully.");
                 }
             }
 

@@ -24,7 +24,12 @@ import IconHeadphones from '../../assets/playing-tab-icons/Headphones.svg?react'
 import { useQueue } from '../../context/QueueContext';
 import { usePlaylists } from '../../context/PlaylistContext';
 
-export default function PlayerBar() {
+interface PlayerBarProps {
+  rightPanelMode?: 'queue' | 'equalizer';
+  onSetRightPanelMode?: (mode: 'queue' | 'equalizer') => void;
+}
+
+export default function PlayerBar({ rightPanelMode = 'queue', onSetRightPanelMode }: PlayerBarProps) {
   const { currentTrack, nextTrack, previousTrack, isShuffled, toggleShuffle, repeatMode, toggleRepeat } = useQueue();
   const { favoritePaths, toggleFavorite } = usePlaylists();
   const [isPlaying, setIsPlaying] = useState(false);
@@ -687,10 +692,18 @@ export default function PlayerBar() {
       <div className="player-right">
 
         <div className="right-controls">
-          <button className="ext-control-btn queue-btn active" title="Queue">
+          <button 
+            className={`ext-control-btn queue-btn ${rightPanelMode === 'queue' ? 'active' : ''}`} 
+            title="Queue"
+            onClick={() => onSetRightPanelMode?.('queue')}
+          >
             <IconQueue />
           </button>
-          <button className="ext-control-btn" title="Equalizer">
+          <button 
+            className={`ext-control-btn ${rightPanelMode === 'equalizer' ? 'active' : ''}`} 
+            title="Equalizer" 
+            onClick={() => onSetRightPanelMode?.('equalizer')}
+          >
             <IconEq />
           </button>
 

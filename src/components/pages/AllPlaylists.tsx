@@ -119,7 +119,7 @@ export default function AllPlaylists({ musicFiles, onNavigate }: AllPlaylistsPro
   return (
     <div className="all-playlists-view">
       <div className="view-header">
-        <h1>All Playlists</h1>
+        <h1 className="section-heading">All Playlists</h1>
         <button className="create-playlist-btn" onClick={handleCreatePlaylist}>
           <Plus size={18} />
           Create Playlist

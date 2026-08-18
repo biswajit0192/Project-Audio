@@ -112,6 +112,20 @@ pub fn ensure_schema(conn: &Connection) -> SqlResult<()> {
             threshold_db REAL DEFAULT -17.0,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
+        CREATE TABLE IF NOT EXISTS eq_profiles (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            band_mode TEXT NOT NULL,
+            bands_json TEXT NOT NULL,
+            is_freq_locked BOOLEAN DEFAULT 1,
+            linked_device_name TEXT,
+            auto_switch_on_connect BOOLEAN DEFAULT 0,
+            created_at INTEGER DEFAULT (cast(strftime('%s', 'now') as int))
+        );
+        CREATE TABLE IF NOT EXISTS app_settings (
+            setting_key TEXT PRIMARY KEY,
+            setting_value TEXT
+        );
         "
     )?;
     
@@ -776,5 +790,142 @@ fn cleanup_ghost_tracks_in_folder(conn: &mut Connection, folder_path: &str, exis
         }
     }
     tx.commit()?;
+    Ok(())
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct EQProfile {
+    pub id: String,
+    pub name: String,
+    pub band_mode: String,
+    pub bands_json: String,
+    pub is_freq_locked: bool,
+    pub linked_device_name: Option<String>,
+    pub auto_switch_on_connect: bool,
+    pub created_at: i64,
+}
+
+#[tauri::command]
+pub fn save_eq_profile(app: tauri::AppHandle, profile: EQProfile) -> Result<(), String> {
+    let db_path = get_db_path(&app);
+    let conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
+    ensure_schema(&conn).map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "INSERT INTO eq_profiles 
+         (id, name, band_mode, bands_json, is_freq_locked, linked_device_name, auto_switch_on_connect, created_at) 
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+         ON CONFLICT(id) DO UPDATE SET
+           name = excluded.name,
+           band_mode = excluded.band_mode,
+           bands_json = excluded.bands_json,
+           is_freq_locked = excluded.is_freq_locked,
+           linked_device_name = excluded.linked_device_name,
+           auto_switch_on_connect = excluded.auto_switch_on_connect;",
+        params![
+            profile.id,
+            profile.name,
+            profile.band_mode,
+            profile.bands_json,
+            profile.is_freq_locked,
+            profile.linked_device_name,
+            profile.auto_switch_on_connect,
+            profile.created_at
+        ],
+    ).map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn load_eq_profiles(app: tauri::AppHandle) -> Result<Vec<EQProfile>, String> {
+    let db_path = get_db_path(&app);
+    let conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
+    ensure_schema(&conn).map_err(|e| e.to_string())?;
+
+    // Seed default profiles if empty
+    let count: i64 = conn.query_row("SELECT COUNT(*) FROM eq_profiles", [], |row| row.get(0)).unwrap_or(0);
+    if count == 0 {
+        // Seed Flat profile
+        let flat_bands = serde_json::json!({
+            "bands15": [],
+            "bands31": []
+        });
+        let _ = conn.execute(
+            "INSERT INTO eq_profiles (id, name, band_mode, bands_json, is_freq_locked, auto_switch_on_connect, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params!["default-flat", "Flat", "15-band", flat_bands.to_string(), true, false, 0]
+        );
+        let _ = conn.execute(
+            "INSERT INTO eq_profiles (id, name, band_mode, bands_json, is_freq_locked, auto_switch_on_connect, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params!["default-bass-boost", "Bass Boost", "15-band", flat_bands.to_string(), true, false, 0]
+        );
+        let _ = conn.execute(
+            "INSERT INTO eq_profiles (id, name, band_mode, bands_json, is_freq_locked, auto_switch_on_connect, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params!["default-vocal", "Vocal Clarity", "15-band", flat_bands.to_string(), true, false, 0]
+        );
+        let _ = conn.execute(
+            "INSERT INTO eq_profiles (id, name, band_mode, bands_json, is_freq_locked, auto_switch_on_connect, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params!["default-treble", "Treble Boost", "15-band", flat_bands.to_string(), true, false, 0]
+        );
+    }
+
+    let mut stmt = conn.prepare("SELECT id, name, band_mode, bands_json, is_freq_locked, linked_device_name, auto_switch_on_connect, created_at FROM eq_profiles ORDER BY created_at ASC").map_err(|e| e.to_string())?;
+    let profile_iter = stmt.query_map([], |row| {
+        Ok(EQProfile {
+            id: row.get(0)?,
+            name: row.get(1)?,
+            band_mode: row.get(2)?,
+            bands_json: row.get(3)?,
+            is_freq_locked: row.get(4)?,
+            linked_device_name: row.get(5)?,
+            auto_switch_on_connect: row.get(6)?,
+            created_at: row.get(7)?,
+        })
+    }).map_err(|e| e.to_string())?;
+
+    let mut profiles = Vec::new();
+    for p in profile_iter {
+        profiles.push(p.map_err(|e| e.to_string())?);
+    }
+
+    Ok(profiles)
+}
+
+#[tauri::command]
+pub fn delete_eq_profile(app: tauri::AppHandle, id: String) -> Result<(), String> {
+    let db_path = get_db_path(&app);
+    let conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
+    ensure_schema(&conn).map_err(|e| e.to_string())?;
+
+    conn.execute("DELETE FROM eq_profiles WHERE id = ?1", params![id]).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+pub fn get_setting(app: &AppHandle, key: &str) -> Result<Option<String>, String> {
+    let db_path = get_db_path(app);
+    let conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
+    
+    let mut stmt = conn.prepare("SELECT setting_value FROM app_settings WHERE setting_key = ?1").map_err(|e| e.to_string())?;
+    let mut rows = stmt.query(params![key]).map_err(|e| e.to_string())?;
+    
+    if let Some(row) = rows.next().map_err(|e| e.to_string())? {
+        let value: String = row.get(0).map_err(|e| e.to_string())?;
+        Ok(Some(value))
+    } else {
+        Ok(None)
+    }
+}
+
+pub fn set_setting(app: &AppHandle, key: &str, value: &str) -> Result<(), String> {
+    let db_path = get_db_path(app);
+    let conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
+    
+    conn.execute(
+        "INSERT INTO app_settings (setting_key, setting_value) VALUES (?1, ?2)
+         ON CONFLICT(setting_key) DO UPDATE SET setting_value = excluded.setting_value",
+        params![key, value],
+    ).map_err(|e| e.to_string())?;
+    
     Ok(())
 }
